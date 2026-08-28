@@ -16,9 +16,13 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -102,6 +106,27 @@ class VotingServiceTest {
         verify(voteRepository).countBySessionId(session.getId());
     }
 
+    @ParameterizedTest
+    @MethodSource("finalResults")
+    void shouldCalculateEveryFinalResult(long yesVotes, long noVotes, VotingResult expectedResult) {
+        Agenda agenda = Agenda.create("Nova sede", null, NOW.minusSeconds(120));
+        VotingSession session = VotingSession.open(agenda, NOW.minusSeconds(120), Duration.ofMinutes(1));
+        when(sessionRepository.findByAgendaId(agenda.getId())).thenReturn(Optional.of(session));
+        when(voteRepository.countBySessionId(session.getId())).thenReturn(List.of(
+                count(VoteOption.YES, yesVotes),
+                count(VoteOption.NO, noVotes)));
+
+        assertThat(service.getResult(agenda.getId()).result()).isEqualTo(expectedResult);
+    }
+
+    private static Stream<Arguments> finalResults() {
+        return Stream.of(
+                Arguments.of(2, 1, VotingResult.APPROVED),
+                Arguments.of(1, 2, VotingResult.REJECTED),
+                Arguments.of(1, 1, VotingResult.TIED),
+                Arguments.of(0, 0, VotingResult.TIED));
+    }
+
     private VoteRepository.VoteCount count(VoteOption option, long total) {
         return new VoteRepository.VoteCount() {
             @Override
@@ -116,4 +141,3 @@ class VotingServiceTest {
         };
     }
 }
-

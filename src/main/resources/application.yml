@@ -45,6 +45,10 @@ springdoc:
     operations-sorter: method
     tags-sorter: alpha
 
+coopvote:
+  mobile:
+    callback-base-url: ${CALLBACK_BASE_URL:http://localhost:8080}
+
 logging:
   structured:
     format:
@@ -52,4 +56,3 @@ logging:
   level:
     root: INFO
     com.felipericarte.coopvote: INFO
-
