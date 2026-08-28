@@ -11,6 +11,8 @@ execução reproduzível.
 - votos `Sim` ou `Não`, limitados a um voto por associado em cada pauta;
 - encerramento calculado pelo relógio, sem processo agendado;
 - apuração agregada pelo banco, adequada a grandes volumes;
+- mensagens `FORMULARIO` e `SELECAO` para o fluxo server-driven do aplicativo mobile;
+- callbacks mobile absolutos com domínio alterável por configuração;
 - respostas de erro no padrão Problem Details;
 - API versionada em `/api/v1`;
 - migrations, logs estruturados, health check e documentação OpenAPI.
@@ -41,6 +43,7 @@ Verificações rápidas:
 ```bash
 curl http://localhost:8080/actuator/health
 curl http://localhost:8080/api-docs
+curl -X POST http://localhost:8080/api/v1/mobile
 ```
 
 Interfaces de documentação:
@@ -81,7 +84,7 @@ O relatório de cobertura é criado em `target/site/jacoco/index.html`.
 | `DB_PASSWORD` | `coopvote` | senha do banco |
 | `DB_POOL_SIZE` | `20` | máximo de conexões no pool |
 | `DB_POOL_MIN_IDLE` | `5` | mínimo de conexões ociosas |
-| `CALLBACK_BASE_URL` | `http://localhost:8080` | domínio reservado para callbacks do cliente mobile |
+| `CALLBACK_BASE_URL` | `http://localhost:8080` | domínio usado nas URLs de callback do cliente mobile |
 
 Credenciais padrão existem apenas para desenvolvimento local. Ambientes compartilhados devem
 fornecer segredos próprios.
@@ -89,8 +92,8 @@ fornecer segredos próprios.
 ## Documentação
 
 - [Contrato e exemplos da API](docs/API.md)
+- [Protocolo e fluxo de telas mobile](docs/MOBILE.md)
 - [Arquitetura e decisões técnicas](docs/ARCHITECTURE.md)
 - [Requisitos, premissas e lacunas catalogadas](docs/REQUIREMENTS.md)
 - [Fluxo de desenvolvimento e commits](docs/DEVELOPMENT.md)
 - [Histórico de versões](CHANGELOG.md)
-

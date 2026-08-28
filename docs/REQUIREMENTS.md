@@ -12,6 +12,12 @@
 | Persistir após reinício | PostgreSQL em volume Docker e migrations Flyway |
 | Contabilizar e informar resultado | `GET /api/v1/agendas/{id}/result` |
 | API REST em JSON | recursos versionados em `/api/v1` |
+| Mensagens de tela para o aplicativo | fluxo POST em `/api/v1/mobile` |
+| Tela `FORMULARIO` | cadastro, abertura, votação e resultado |
+| Tela `SELECAO` | navegação entre pautas e ações disponíveis |
+| Campos do anexo | `TEXTO`, `INPUT_TEXTO` e `INPUT_NUMERO` |
+| POST definido por botões e itens | cada ação contém `url` absoluta e `body` quando necessário |
+| Domínio dos callbacks configurável | variável `CALLBACK_BASE_URL` |
 | Erros e exceções | Problem Details e códigos de negócio |
 | Documentação da API | Swagger UI e OpenAPI JSON |
 | Logs | JSON estruturado e correlação por requisição |
@@ -32,7 +38,11 @@ adotadas estas premissas:
 8. O identificador do associado é um texto opaco de até 100 caracteres; não é presumido como CPF.
 9. IDs de recursos são UUIDs gerados pelo servidor.
 10. Horários do contrato são instantes ISO 8601 em UTC.
-11. Atualização, exclusão e listagem de pautas não foram criadas porque não são solicitadas.
+11. Não foi criado endpoint de domínio para atualização, exclusão ou listagem de pautas porque não
+    são solicitados.
+12. A listagem existente no fluxo mobile é apenas navegação e não amplia a API de domínio.
+13. O ponto de entrada do cliente é `POST /api/v1/mobile`, ausente no documento.
+14. Os callbacks mobile bem-sucedidos retornam sempre a próxima tela com HTTP 200.
 
 ## Lacunas catalogadas no material recebido
 
@@ -41,9 +51,9 @@ aplicativo:
 
 | Lacuna | Impacto |
 |---|---|
-| Exemplos JSON completos de `FORMULARIO` e `SELECAO` não constam no texto extraído | não é possível reproduzir o protocolo de telas sem inventar campos |
-| Imagens do anexo não foram preservadas | aparência, identificadores e ações esperadas não podem ser verificados |
-| A dica menciona callbacks sem descrever seu fluxo | o domínio fica configurável, mas nenhuma chamada de callback é presumida |
+| O documento não define o ponto de entrada do aplicativo | adotado `POST /api/v1/mobile` |
+| O documento define os tipos de tela, mas não as telas do fluxo de votação | criado um fluxo mínimo para cadastro, abertura, voto e apuração |
+| O comportamento do aplicativo diante de respostas de erro não é definido | mantido Problem Details com semântica HTTP e códigos estáveis |
 | Unidade e limite máximo da duração não são definidos | adotados minutos positivos, sem teto funcional arbitrário |
 | Reabertura e múltiplas sessões não são definidas | adotada uma sessão por pauta |
 | Consulta de parcial e momento da apuração não são definidos | parcial liberada com resultado `IN_PROGRESS` |
@@ -54,4 +64,3 @@ aplicativo:
 | Serviço externo informado pode estar indisponível e responde aleatoriamente | faltam política de indisponibilidade e estratégia determinística de testes |
 | Não há metas de latência, vazão ou volume para performance | estrutura otimizada, mas sem critério objetivo de aceite de carga |
 | Status HTTP e formato de erros não são especificados | adotadas semânticas REST e Problem Details |
-
