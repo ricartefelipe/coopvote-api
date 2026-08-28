@@ -13,7 +13,7 @@
 
     <groupId>com.felipericarte</groupId>
     <artifactId>coopvote-api</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
     <name>CoopVote API</name>
     <description>API REST para gerenciamento de pautas e sessões de votação cooperativa</description>
 
