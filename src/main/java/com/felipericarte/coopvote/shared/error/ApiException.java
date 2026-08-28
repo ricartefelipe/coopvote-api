@@ -1,0 +1,36 @@
+package com.felipericarte.coopvote.shared.error;
+
+import java.util.Objects;
+import org.springframework.http.HttpStatus;
+
+/**
+ * Exceção de negócio traduzível para uma resposta HTTP estável.
+ */
+public class ApiException extends RuntimeException {
+
+    private final HttpStatus status;
+    private final String code;
+
+    private ApiException(HttpStatus status, String code, String message) {
+        super(message);
+        this.status = Objects.requireNonNull(status);
+        this.code = Objects.requireNonNull(code);
+    }
+
+    public static ApiException notFound(String code, String message) {
+        return new ApiException(HttpStatus.NOT_FOUND, code, message);
+    }
+
+    public static ApiException conflict(String code, String message) {
+        return new ApiException(HttpStatus.CONFLICT, code, message);
+    }
+
+    public HttpStatus getStatus() {
+        return status;
+    }
+
+    public String getCode() {
+        return code;
+    }
+}
+
