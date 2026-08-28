@@ -5,6 +5,8 @@ Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-28
+
 ### Added
 
 - protocolo de telas mobile compatível com `FORMULARIO` e `SELECAO`;
