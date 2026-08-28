@@ -137,6 +137,43 @@ class VotingApiIntegrationTest {
     }
 
     @Test
+    void shouldRejectInvalidDurationAndVoteOption() throws Exception {
+        UUID agendaId = createAgenda();
+
+        mockMvc.perform(post("/api/v1/agendas/{agendaId}/voting-sessions", agendaId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"durationMinutes":0}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+        openSession(agendaId, 5);
+
+        mockMvc.perform(post("/api/v1/agendas/{agendaId}/votes", agendaId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"associateId":"associate-1","vote":"Talvez"}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST_BODY"));
+    }
+
+    @Test
+    void shouldReportMissingAgendaAndSession() throws Exception {
+        UUID missingAgendaId = UUID.randomUUID();
+
+        mockMvc.perform(post("/api/v1/agendas/{agendaId}/voting-sessions", missingAgendaId))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("AGENDA_NOT_FOUND"));
+
+        UUID agendaWithoutSession = createAgenda();
+        mockMvc.perform(get("/api/v1/agendas/{agendaId}/result", agendaWithoutSession))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("VOTING_SESSION_NOT_FOUND"));
+    }
+
+    @Test
     void shouldRejectSecondSessionForSameAgenda() throws Exception {
         UUID agendaId = createAgenda();
         openSession(agendaId, 5);
@@ -148,6 +185,17 @@ class VotingApiIntegrationTest {
                                 """))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("VOTING_SESSION_ALREADY_EXISTS"));
+    }
+
+    @Test
+    void shouldPublishVersionedOpenApiContract() throws Exception {
+        mockMvc.perform(get("/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.info.title").value("CoopVote API"))
+                .andExpect(jsonPath("$.info.version").value("v1"))
+                .andExpect(jsonPath("$.paths['/api/v1/agendas']").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/agendas/{agendaId}/votes']").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/agendas/{agendaId}/result']").exists());
     }
 
     private UUID createAgenda() throws Exception {
