@@ -5,6 +5,8 @@ Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-08-28
+
 ### Added
 
 - cadastro e consulta de pautas;
@@ -15,4 +17,3 @@ Semantic Versioning.
 - Problem Details, logs estruturados e correlação HTTP;
 - documentação OpenAPI e execução com Docker Compose;
 - testes unitários, integrados e concorrentes.
-
