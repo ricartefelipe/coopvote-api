@@ -11,9 +11,13 @@ HTTP / JSON
     +-- agenda.api ------ AgendaService ------ AgendaRepository
     |
     +-- voting.api ----- VotingService ------- VotingSessionRepository
-                               |               VoteRepository
+    |                          |               VoteRepository
+    |                          |
+    |                    regras temporais
+    |
+    +-- mobile.api ----- MobileScreenFactory
                                |
-                         regras temporais
+                         AgendaService + VotingService
 
 PostgreSQL + Flyway
 ```
@@ -22,11 +26,16 @@ Os módulos atuais são:
 
 - `agenda`: cadastro, consulta e persistência das pautas;
 - `voting`: sessão, voto, unicidade e apuração;
+- `mobile`: adaptação do domínio para mensagens `FORMULARIO` e `SELECAO`;
 - `shared`: configuração transversal, correlação HTTP e tratamento de erros.
 
 Controllers limitam-se ao contrato HTTP. Services delimitam casos de uso e transações. Entidades
 protegem invariantes locais. Repositórios concentram o acesso aos dados. Não foram adicionadas
 interfaces intermediárias sem uma segunda implementação concreta.
+
+A camada `mobile` não replica regras de negócio. Seus controllers chamam os mesmos services usados
+pela API de domínio e o `MobileScreenFactory` limita-se a montar o protocolo de apresentação. As
+ações são URLs absolutas de callback construídas a partir de `CALLBACK_BASE_URL`.
 
 ## Modelo de dados
 
@@ -82,5 +91,5 @@ erro. O Actuator expõe `health`, `info` e `metrics`.
 - mensageria, pois o fluxo atual é síncrono e transacional;
 - separação em microsserviços, sem fronteira operacional que justifique o custo;
 - integração de elegibilidade por CPF, tratada como bônus e dependente de serviço externo;
-- camada de mensagens de tela mobile, dependente do contrato integral do anexo.
-
+- paginação de pautas no protocolo mobile, pois o anexo não define paginação e o escopo esperado é
+  reduzido.
