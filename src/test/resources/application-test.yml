@@ -1,0 +1,18 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:coopvote;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    locations: classpath:db/migration
+
+logging:
+  structured:
+    format:
+      console:
+  level:
+    root: WARN
+
