@@ -5,6 +5,9 @@ Base path: `/api/v1`
 Datas usam ISO 8601 em UTC. Corpos usam UTF-8 e `application/json`. A especificação executável está
 disponível em `/api-docs` e a interface Swagger em `/swagger-ui.html`.
 
+O fluxo próprio do aplicativo mobile também faz parte desta API e está detalhado em
+[`MOBILE.md`](MOBILE.md).
+
 ## Cadastrar pauta
 
 ```http
@@ -116,4 +119,3 @@ Resultados possíveis: `IN_PROGRESS`, `APPROVED`, `REJECTED` e `TIED`.
 
 O cliente pode enviar `X-Correlation-ID` com até 100 caracteres seguros. Valores ausentes ou
 inválidos são substituídos por um UUID, sempre devolvido no mesmo cabeçalho.
-

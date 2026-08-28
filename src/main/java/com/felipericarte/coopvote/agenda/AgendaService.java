@@ -2,6 +2,7 @@ package com.felipericarte.coopvote.agenda;
 
 import com.felipericarte.coopvote.shared.error.ApiException;
 import java.time.Clock;
+import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,5 +47,12 @@ public class AgendaService {
                         "AGENDA_NOT_FOUND",
                         "Agenda '%s' was not found.".formatted(agendaId)));
     }
-}
 
+    /**
+     * Lista as pautas mais recentes primeiro para navegação no cliente mobile.
+     */
+    @Transactional(readOnly = true)
+    public List<Agenda> listAll() {
+        return agendaRepository.findAllByOrderByCreatedAtDesc();
+    }
+}

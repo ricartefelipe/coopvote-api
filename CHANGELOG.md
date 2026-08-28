@@ -5,6 +5,15 @@ Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-28
+
+### Added
+
+- protocolo de telas mobile compatível com `FORMULARIO` e `SELECAO`;
+- fluxo mobile completo para cadastrar pauta, abrir sessão, votar e consultar a apuração;
+- geração de callbacks absolutos a partir de `CALLBACK_BASE_URL`;
+- testes integrados do contrato e do fluxo server-driven.
+
 ## [0.1.0] - 2026-08-28
 
 ### Added

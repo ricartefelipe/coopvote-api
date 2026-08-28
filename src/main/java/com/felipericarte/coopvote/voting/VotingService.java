@@ -6,6 +6,7 @@ import com.felipericarte.coopvote.shared.error.ApiException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -122,6 +123,16 @@ public class VotingService {
         return new VotingSummary(agendaId, session.getId(), status, yesVotes, noVotes, result);
     }
 
+    /**
+     * Consulta o estado corrente da sessão sem exigir que ela já exista.
+     */
+    @Transactional(readOnly = true)
+    public Optional<VotingSessionStatus> findSessionStatus(UUID agendaId) {
+        Instant now = clock.instant();
+        return sessionRepository.findByAgendaId(agendaId)
+                .map(session -> session.statusAt(now));
+    }
+
     private VotingSession findSession(UUID agendaId) {
         return sessionRepository.findByAgendaId(agendaId)
                 .orElseThrow(() -> ApiException.notFound(
@@ -154,4 +165,3 @@ public class VotingService {
                 "The associate has already voted on agenda '%s'.".formatted(agendaId));
     }
 }
-

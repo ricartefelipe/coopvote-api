@@ -194,6 +194,7 @@ class VotingApiIntegrationTest {
                 .andExpect(jsonPath("$.info.title").value("CoopVote API"))
                 .andExpect(jsonPath("$.info.version").value("v1"))
                 .andExpect(jsonPath("$.paths['/api/v1/agendas']").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/mobile']").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/agendas/{agendaId}/votes']").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/agendas/{agendaId}/result']").exists());
     }
