@@ -1,0 +1,29 @@
+image: maven:3.9.11-eclipse-temurin-21
+
+stages:
+  - verify
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
+  MAVEN_CLI_OPTS: "--batch-mode --no-transfer-progress"
+
+cache:
+  key: maven-dependencies
+  paths:
+    - .m2/repository/
+
+verify:
+  stage: verify
+  script:
+    - mvn $MAVEN_CLI_OPTS clean verify
+  artifacts:
+    when: always
+    expire_in: 1 week
+    reports:
+      junit: target/surefire-reports/TEST-*.xml
+      coverage_report:
+        coverage_format: jacoco
+        path: target/site/jacoco/jacoco.xml
+    paths:
+      - target/site/jacoco/
+      - target/coopvote-api-*.jar
