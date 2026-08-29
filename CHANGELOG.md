@@ -5,6 +5,13 @@ Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-08-29
+
+### Fixed
+
+- inicialização do container em plataformas que fornecem a URL de conexão do PostgreSQL;
+- composição da URL pública usada nos callbacks do fluxo mobile.
+
 ## [0.3.0] - 2026-08-29
 
 ### Added
