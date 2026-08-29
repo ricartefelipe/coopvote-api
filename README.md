@@ -75,6 +75,9 @@ Windows:
 
 O relatório de cobertura é criado em `target/site/jacoco/index.html`.
 
+No GitLab, cada push e merge request executa `mvn clean verify`. A pipeline publica os
+resultados JUnit, o relatório JaCoCo e o arquivo executável como artefatos por sete dias.
+
 ## Configuração
 
 | Variável | Padrão | Finalidade |
