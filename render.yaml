@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: coopvote-api
+    runtime: docker
+    plan: free
+    region: virginia
+    branch: main
+    autoDeployTrigger: commit
+    healthCheckPath: /actuator/health
+    dockerCommand: >-
+      sh -c 'export DB_URL="jdbc:postgresql://${DATABASE_URL##*@}";
+      export CALLBACK_BASE_URL="https://${RENDER_EXTERNAL_HOSTNAME}";
+      exec java -XX:MaxRAMPercentage=75.0 -jar /app/app.jar'
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: coopvote-db
+          property: connectionString
+      - key: DB_USERNAME
+        fromDatabase:
+          name: coopvote-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: coopvote-db
+          property: password
+      - key: DB_POOL_SIZE
+        value: "5"
+      - key: DB_POOL_MIN_IDLE
+        value: "1"
+
+databases:
+  - name: coopvote-db
+    plan: free
+    region: virginia
+    postgresMajorVersion: "17"
+    databaseName: coopvote
+    user: coopvote
+    ipAllowList: []

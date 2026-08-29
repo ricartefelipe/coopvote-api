@@ -160,6 +160,16 @@ class VotingApiIntegrationTest {
     }
 
     @Test
+    void shouldRejectUnsupportedContentTypeWithoutReportingInternalFailure() throws Exception {
+        mockMvc.perform(post("/api/v1/agendas")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .content("title=Nova+sede"))
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(jsonPath("$.code").value("UNSUPPORTED_MEDIA_TYPE"))
+                .andExpect(jsonPath("$.detail").value("The Content-Type header is not supported."));
+    }
+
+    @Test
     void shouldReportMissingAgendaAndSession() throws Exception {
         UUID missingAgendaId = UUID.randomUUID();
 
