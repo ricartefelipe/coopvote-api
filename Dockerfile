@@ -12,9 +12,11 @@ FROM eclipse-temurin:21-jre-alpine
 RUN addgroup -S coopvote && adduser -S coopvote -G coopvote
 WORKDIR /app
 COPY --from=build /workspace/target/*.jar app.jar
+COPY docker-entrypoint.sh docker-entrypoint.sh
+RUN chmod 0555 docker-entrypoint.sh
 
 USER coopvote
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-jar", "/app/app.jar"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 
