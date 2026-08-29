@@ -7,10 +7,6 @@ services:
     branch: main
     autoDeployTrigger: commit
     healthCheckPath: /actuator/health
-    dockerCommand: >-
-      sh -c 'export DB_URL="jdbc:postgresql://${DATABASE_URL##*@}";
-      export CALLBACK_BASE_URL="https://${RENDER_EXTERNAL_HOSTNAME}";
-      exec java -XX:MaxRAMPercentage=75.0 -jar /app/app.jar'
     envVars:
       - key: DATABASE_URL
         fromDatabase:
