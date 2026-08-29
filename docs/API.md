@@ -110,6 +110,7 @@ Resultados possíveis: `IN_PROGRESS`, `APPROVED`, `REJECTED` e `TIED`.
 | `VALIDATION_ERROR` | 400 | campos ou parâmetros inválidos |
 | `INVALID_REQUEST_BODY` | 400 | JSON ausente ou malformado |
 | `INVALID_PARAMETER` | 400 | identificador em formato inválido |
+| `UNSUPPORTED_MEDIA_TYPE` | 415 | `Content-Type` não suportado pelo recurso |
 | `AGENDA_NOT_FOUND` | 404 | pauta inexistente |
 | `VOTING_SESSION_NOT_FOUND` | 404 | sessão ainda não aberta |
 | `VOTING_SESSION_ALREADY_EXISTS` | 409 | tentativa de abrir outra sessão |
