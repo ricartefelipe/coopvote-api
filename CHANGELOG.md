@@ -5,6 +5,18 @@ Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-29
+
+### Added
+
+- pipeline do GitLab com build, testes, verificação de cobertura e artefatos;
+- Blueprint do Render para aplicação Docker e PostgreSQL gerenciado;
+- documentação de publicação e teste automatizado do ambiente publicado.
+
+### Fixed
+
+- resposta `415 UNSUPPORTED_MEDIA_TYPE` para tipos de conteúdo não aceitos pela API.
+
 ## [0.2.0] - 2026-08-28
 
 ### Added
