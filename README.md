@@ -88,6 +88,7 @@ resultados JUnit, o relatório JaCoCo e o arquivo executável como artefatos por
 | `DB_POOL_SIZE` | `20` | máximo de conexões no pool |
 | `DB_POOL_MIN_IDLE` | `5` | mínimo de conexões ociosas |
 | `CALLBACK_BASE_URL` | `http://localhost:8080` | domínio usado nas URLs de callback do cliente mobile |
+| `PORT` | `8080` | porta HTTP da aplicação |
 
 Credenciais padrão existem apenas para desenvolvimento local. Ambientes compartilhados devem
 fornecer segredos próprios.
@@ -99,4 +100,5 @@ fornecer segredos próprios.
 - [Arquitetura e decisões técnicas](docs/ARCHITECTURE.md)
 - [Requisitos, premissas e lacunas catalogadas](docs/REQUIREMENTS.md)
 - [Fluxo de desenvolvimento e commits](docs/DEVELOPMENT.md)
+- [Publicação em nuvem e teste pós-publicação](docs/DEPLOYMENT.md)
 - [Histórico de versões](CHANGELOG.md)
