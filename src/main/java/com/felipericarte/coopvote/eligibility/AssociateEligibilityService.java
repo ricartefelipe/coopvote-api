@@ -30,7 +30,7 @@ public class AssociateEligibilityService implements AssociateEligibilityPolicy {
 
     private void assertCpfEligible(String cpf) {
         if (!Cpf.hasValidCheckDigits(cpf)) {
-            throw ApiException.badRequest("INVALID_CPF", "The associate CPF is invalid.");
+            throw ApiException.badRequest("INVALID_CPF", "O CPF informado é inválido.");
         }
 
         try {
@@ -39,10 +39,10 @@ public class AssociateEligibilityService implements AssociateEligibilityPolicy {
                 }
                 case UNABLE_TO_VOTE -> throw ApiException.forbidden(
                         "ASSOCIATE_UNABLE_TO_VOTE",
-                        "The associate is not allowed to vote.");
+                        "O associado não está habilitado a votar.");
                 case NOT_FOUND -> throw ApiException.notFound(
                         "INVALID_CPF",
-                        "The associate CPF was not found.");
+                        "O CPF informado não foi encontrado.");
                 case null -> LOGGER.atWarn()
                         .addKeyValue("cpfSuffix", cpf.substring(9))
                         .log("Eligibility service unavailable; vote proceeds");

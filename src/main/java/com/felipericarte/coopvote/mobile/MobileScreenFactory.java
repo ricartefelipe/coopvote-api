@@ -72,7 +72,7 @@ public class MobileScreenFactory {
                 "Abrir votação",
                 List.of(
                         FormItem.text(agenda.getTitle()),
-                        FormItem.numberInput("durationMinutes", "Duração em minutos", 1)),
+                        FormItem.numberInput("durationMinutes", "Duração em minutos", 10)),
                 MobileAction.callback(
                         "Abrir sessão",
                         callbackUrls.create("/agendas/" + agenda.getId() + "/voting-sessions"),
