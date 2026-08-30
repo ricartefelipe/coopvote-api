@@ -101,7 +101,7 @@ Resultados possíveis: `IN_PROGRESS`, `APPROVED`, `REJECTED` e `TIED`.
   "type": "about:blank",
   "title": "Conflict",
   "status": 409,
-  "detail": "The associate has already voted on agenda '...'.",
+  "detail": "Este associado já votou nesta pauta.",
   "instance": "/api/v1/agendas/.../votes",
   "code": "DUPLICATE_VOTE",
   "timestamp": "2026-08-28T10:00:10Z",
