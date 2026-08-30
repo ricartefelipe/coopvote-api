@@ -52,23 +52,56 @@ if ($result.yesVotes -ne 1 -or $result.noVotes -ne 0 -or $result.totalVotes -ne 
     throw 'Vote totals do not match the smoke-test scenario.'
 }
 
-$duplicateCode = $null
-try {
-    Invoke-RestMethod `
-        -Uri "$apiUrl/api/v1/agendas/$($agenda.id)/votes" `
-        -Method Post `
-        -ContentType 'application/json' `
-        -Body $voteBody | Out-Null
-} catch {
-    if ([int] $_.Exception.Response.StatusCode -ne 409) {
-        throw
+function Invoke-JsonHttp {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $Method,
+        [Parameter(Mandatory = $true)]
+        [string] $Uri,
+        [string] $Body
+    )
+
+    $outFile = Join-Path ([System.IO.Path]::GetTempPath()) ("coopvote-smoke-" + [guid]::NewGuid().ToString() + ".json")
+    $curlArgs = @(
+        '-sS',
+        '-w', '%{http_code}',
+        '-o', $outFile,
+        '-X', $Method,
+        $Uri
+    )
+    if ($PSBoundParameters.ContainsKey('Body')) {
+        $curlArgs += @('-H', 'Content-Type: application/json', '--data-binary', $Body)
     }
 
-    $duplicateCode = ($_.ErrorDetails.Message | ConvertFrom-Json).code
+    $statusCode = & curl.exe @curlArgs
+    $payload = $null
+    if ((Test-Path $outFile) -and (Get-Item $outFile).Length -gt 0) {
+        $payload = Get-Content $outFile -Raw -Encoding UTF8 | ConvertFrom-Json
+    }
+    Remove-Item $outFile -ErrorAction SilentlyContinue
+
+    [PSCustomObject]@{
+        StatusCode = [int] $statusCode
+        Payload = $payload
+    }
 }
 
-if ($duplicateCode -ne 'DUPLICATE_VOTE') {
-    throw "Duplicate-vote protection returned '$duplicateCode'."
+$duplicate = Invoke-JsonHttp `
+    -Method POST `
+    -Uri "$apiUrl/api/v1/agendas/$($agenda.id)/votes" `
+    -Body $voteBody
+if ($duplicate.StatusCode -ne 409 -or $duplicate.Payload.code -ne 'DUPLICATE_VOTE') {
+    throw "Duplicate-vote protection returned HTTP $($duplicate.StatusCode) '$($duplicate.Payload.code)'."
+}
+
+$unsupportedMethod = Invoke-JsonHttp -Method DELETE -Uri "$apiUrl/api/v1/agendas"
+if ($unsupportedMethod.StatusCode -ne 405 -or $unsupportedMethod.Payload.code -ne 'METHOD_NOT_ALLOWED') {
+    throw "Unsupported method returned HTTP $($unsupportedMethod.StatusCode) '$($unsupportedMethod.Payload.code)'."
+}
+
+$missingResource = Invoke-JsonHttp -Method GET -Uri "$apiUrl/api/v1/does-not-exist"
+if ($missingResource.StatusCode -ne 404 -or $missingResource.Payload.code -ne 'RESOURCE_NOT_FOUND') {
+    throw "Unknown route returned HTTP $($missingResource.StatusCode) '$($missingResource.Payload.code)'."
 }
 
 [PSCustomObject]@{
@@ -78,5 +111,7 @@ if ($duplicateCode -ne 'DUPLICATE_VOTE') {
     agendaId = $agenda.id
     sessionId = $session.id
     yesVotes = $result.yesVotes
-    duplicateVote = $duplicateCode
+    duplicateVote = $duplicate.Payload.code
+    unsupportedMethod = $unsupportedMethod.Payload.code
+    missingResource = $missingResource.Payload.code
 }
