@@ -85,18 +85,30 @@ public class MobileScreenController {
 
     @PostMapping("/agendas/{agendaId}/votes/new")
     @Operation(summary = "Monta o formulário de votação")
-    public FormScreen newVote(@PathVariable UUID agendaId) {
-        return screens.vote(agendaService.getById(agendaId));
+    public MobileScreen newVote(@PathVariable UUID agendaId) {
+        Agenda agenda = agendaService.getById(agendaId);
+        return screenIfVotingUnavailable(agenda).orElseGet(() -> screens.vote(agenda));
     }
 
     @PostMapping("/agendas/{agendaId}/votes")
     @Operation(summary = "Registra um voto e reapresenta as ações da pauta")
-    public SelectionScreen castVote(
+    public MobileScreen castVote(
             @PathVariable UUID agendaId,
             @Valid @RequestBody CastVoteRequest request) {
         Agenda agenda = agendaService.getById(agendaId);
-        votingService.castVote(agendaId, request.associateId(), request.vote());
-        return screens.agendaActions(agenda, votingService.findSessionStatus(agendaId));
+        return screenIfVotingUnavailable(agenda).orElseGet(() -> {
+            votingService.castVote(agendaId, request.associateId(), request.vote());
+            return screens.agendaActions(agenda, votingService.findSessionStatus(agendaId));
+        });
+    }
+
+    private Optional<MobileScreen> screenIfVotingUnavailable(Agenda agenda) {
+        Optional<VotingSessionStatus> status = votingService.findSessionStatus(agenda.getId());
+        return switch (status.orElse(null)) {
+            case null -> Optional.of(screens.agendaActions(agenda, status));
+            case CLOSED -> Optional.of(screens.result(agenda, votingService.getResult(agenda.getId())));
+            case OPEN -> Optional.empty();
+        };
     }
 
     @PostMapping("/agendas/{agendaId}/result")

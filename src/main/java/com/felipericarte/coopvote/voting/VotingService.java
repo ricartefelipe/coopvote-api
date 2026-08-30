@@ -76,7 +76,7 @@ public class VotingService {
         if (!session.isOpenAt(now)) {
             throw ApiException.conflict(
                     "VOTING_SESSION_CLOSED",
-                    "The voting session for agenda '%s' is closed.".formatted(agendaId));
+                    "A sessão de votação já foi encerrada.");
         }
 
         String normalizedAssociateId = associateId.trim();
@@ -130,7 +130,7 @@ public class VotingService {
         return sessionRepository.findByAgendaId(agendaId)
                 .orElseThrow(() -> ApiException.notFound(
                         "VOTING_SESSION_NOT_FOUND",
-                        "Voting session for agenda '%s' was not found.".formatted(agendaId)));
+                        "Não há sessão de votação para esta pauta."));
     }
 
     private VotingResult calculateResult(VotingSessionStatus status, long yesVotes, long noVotes) {
@@ -151,12 +151,12 @@ public class VotingService {
     private ApiException sessionAlreadyExists(UUID agendaId) {
         return ApiException.conflict(
                 "VOTING_SESSION_ALREADY_EXISTS",
-                "Agenda '%s' already has a voting session.".formatted(agendaId));
+                "Esta pauta já possui uma sessão de votação.");
     }
 
     private ApiException duplicateVote(UUID agendaId) {
         return ApiException.conflict(
                 "DUPLICATE_VOTE",
-                "The associate has already voted on agenda '%s'.".formatted(agendaId));
+                "Este associado já votou nesta pauta.");
     }
 }
