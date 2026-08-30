@@ -100,7 +100,7 @@ class MobileScreenApiIntegrationTest {
                 .andExpect(jsonPath("$.tipo").value("FORMULARIO"))
                 .andExpect(jsonPath("$.itens[1].tipo").value("INPUT_NUMERO"))
                 .andExpect(jsonPath("$.itens[1].id").value("durationMinutes"))
-                .andExpect(jsonPath("$.itens[1].valor").value(1));
+                .andExpect(jsonPath("$.itens[1].valor").value(10));
 
         mockMvc.perform(post("/api/v1/mobile/agendas/{agendaId}/voting-sessions", agendaId)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -148,5 +148,44 @@ class MobileScreenApiIntegrationTest {
                 .andExpect(jsonPath("$.itens[5].texto").value("Resultado: Aprovada"));
 
         assertThat(voteRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    void shouldShowResultInsteadOfVoteWhenSessionIsClosed() throws Exception {
+        mockMvc.perform(post("/api/v1/mobile/agendas")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"Pauta de sessão curta"}
+                                """))
+                .andExpect(status().isOk());
+
+        UUID agendaId = agendaRepository.findAll().getFirst().getId();
+
+        mockMvc.perform(post("/api/v1/mobile/agendas/{agendaId}/voting-sessions", agendaId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"durationMinutes":1}
+                                """))
+                .andExpect(status().isOk());
+
+        clock.advance(Duration.ofMinutes(1));
+
+        mockMvc.perform(post("/api/v1/mobile/agendas/{agendaId}/votes/new", agendaId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tipo").value("FORMULARIO"))
+                .andExpect(jsonPath("$.titulo").value("Resultado da votação"))
+                .andExpect(jsonPath("$.itens[1].texto").value("Sessão: Encerrada"));
+
+        mockMvc.perform(post("/api/v1/mobile/agendas/{agendaId}/votes", agendaId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"associateId":"associate-1","vote":"Sim"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tipo").value("FORMULARIO"))
+                .andExpect(jsonPath("$.titulo").value("Resultado da votação"))
+                .andExpect(jsonPath("$.itens[5].texto").value("Resultado: Empatada"));
+
+        assertThat(voteRepository.count()).isZero();
     }
 }
