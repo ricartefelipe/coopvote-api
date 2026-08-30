@@ -9,6 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -17,10 +18,12 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * Converte falhas de domínio e de entrada em respostas Problem Details consistentes.
@@ -100,6 +103,38 @@ public class GlobalExceptionHandler {
                 HttpStatus.UNSUPPORTED_MEDIA_TYPE,
                 "UNSUPPORTED_MEDIA_TYPE",
                 "The Content-Type header is not supported.",
+                request,
+                null);
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    ResponseEntity<ProblemDetail> handleUnsupportedMethod(
+            HttpRequestMethodNotSupportedException exception,
+            HttpServletRequest request) {
+        ResponseEntity<ProblemDetail> result = response(
+                HttpStatus.METHOD_NOT_ALLOWED,
+                "METHOD_NOT_ALLOWED",
+                "The HTTP method is not supported for this resource.",
+                request,
+                null);
+
+        var supportedMethods = exception.getSupportedHttpMethods();
+        if (supportedMethods == null || supportedMethods.isEmpty()) {
+            return result;
+        }
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+                .allow(supportedMethods.toArray(HttpMethod[]::new))
+                .body(result.getBody());
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    ResponseEntity<ProblemDetail> handleMissingResource(
+            NoResourceFoundException exception,
+            HttpServletRequest request) {
+        return response(
+                HttpStatus.NOT_FOUND,
+                "RESOURCE_NOT_FOUND",
+                "The requested resource was not found.",
                 request,
                 null);
     }

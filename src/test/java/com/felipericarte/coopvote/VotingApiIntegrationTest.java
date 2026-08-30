@@ -170,6 +170,21 @@ class VotingApiIntegrationTest {
     }
 
     @Test
+    void shouldReportUnsupportedMethodAndUnknownResourceWithoutInternalFailure() throws Exception {
+        mockMvc.perform(get("/api/v1/mobile"))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(header().string("Allow", "POST"))
+                .andExpect(jsonPath("$.code").value("METHOD_NOT_ALLOWED"))
+                .andExpect(jsonPath("$.detail")
+                        .value("The HTTP method is not supported for this resource."));
+
+        mockMvc.perform(get("/api/v1/unknown"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"))
+                .andExpect(jsonPath("$.detail").value("The requested resource was not found."));
+    }
+
+    @Test
     void shouldReportMissingAgendaAndSession() throws Exception {
         UUID missingAgendaId = UUID.randomUUID();
 
