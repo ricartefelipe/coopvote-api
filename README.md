@@ -111,4 +111,5 @@ fornecer segredos próprios.
 - [Requisitos, premissas e lacunas catalogadas](docs/REQUIREMENTS.md)
 - [Fluxo de desenvolvimento e commits](docs/DEVELOPMENT.md)
 - [Publicação em nuvem e teste pós-publicação](docs/DEPLOYMENT.md)
+- [Validação reproduzível da entrega](docs/VALIDATION.md)
 - [Histórico de versões](CHANGELOG.md)
