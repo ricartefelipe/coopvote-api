@@ -9,9 +9,9 @@ podem ser executados no Windows a partir da raiz do repositório.
 .\mvnw.cmd clean verify
 ```
 
-A versão validada executa 36 testes de domínio, serviços, HTTP, persistência em teste e
-concorrência. O JaCoCo exige no mínimo 85% de linhas e 70% de branches; a validação atual atingiu
-94,40% de linhas e 84,44% de branches.
+A versão validada executa 49 testes de domínio, serviços, HTTP, persistência, concorrência,
+elegibilidade e volume. O JaCoCo exige no mínimo 85% de linhas e 70% de branches; a validação
+atual atingiu 93,00% de linhas e 80,00% de branches.
 
 ## PostgreSQL e reinício
 

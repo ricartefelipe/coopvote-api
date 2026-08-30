@@ -55,6 +55,7 @@ public class VotingController {
     @ApiResponse(responseCode = "201", description = "Voto registrado")
     @ApiResponse(responseCode = "400", description = "Voto inválido")
     @ApiResponse(responseCode = "404", description = "Sessão inexistente")
+    @ApiResponse(responseCode = "403", description = "Associado inelegível")
     @ApiResponse(responseCode = "409", description = "Sessão fechada ou voto duplicado")
     public VoteResponse castVote(
             @PathVariable UUID agendaId,

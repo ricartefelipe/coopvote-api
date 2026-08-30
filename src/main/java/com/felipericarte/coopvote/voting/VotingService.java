@@ -2,21 +2,21 @@ package com.felipericarte.coopvote.voting;
 
 import com.felipericarte.coopvote.agenda.Agenda;
 import com.felipericarte.coopvote.agenda.AgendaService;
+import com.felipericarte.coopvote.eligibility.AssociateEligibilityPolicy;
 import com.felipericarte.coopvote.shared.error.ApiException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Coordena abertura de sessões, recebimento de votos e apuração.
- */
 @Service
 public class VotingService {
 
@@ -27,22 +27,22 @@ public class VotingService {
     private final AgendaService agendaService;
     private final VotingSessionRepository sessionRepository;
     private final VoteRepository voteRepository;
+    private final AssociateEligibilityPolicy eligibilityPolicy;
     private final Clock clock;
 
     public VotingService(
             AgendaService agendaService,
             VotingSessionRepository sessionRepository,
             VoteRepository voteRepository,
+            AssociateEligibilityPolicy eligibilityPolicy,
             Clock clock) {
         this.agendaService = agendaService;
         this.sessionRepository = sessionRepository;
         this.voteRepository = voteRepository;
+        this.eligibilityPolicy = eligibilityPolicy;
         this.clock = clock;
     }
 
-    /**
-     * Abre a única sessão de uma pauta, usando um minuto quando a duração não é informada.
-     */
     @Transactional
     public VotingSession openSession(UUID agendaId, Integer requestedDurationMinutes) {
         Agenda agenda = agendaService.getById(agendaId);
@@ -50,9 +50,8 @@ public class VotingService {
             throw sessionAlreadyExists(agendaId);
         }
 
-        int durationMinutes = requestedDurationMinutes == null
-                ? DEFAULT_DURATION_MINUTES
-                : requestedDurationMinutes;
+        int durationMinutes = Optional.ofNullable(requestedDurationMinutes)
+                .orElse(DEFAULT_DURATION_MINUTES);
         VotingSession session = VotingSession.open(
                 agenda,
                 clock.instant(),
@@ -70,9 +69,6 @@ public class VotingService {
         }
     }
 
-    /**
-     * Registra um voto quando a sessão está aberta e o associado ainda não participou.
-     */
     @Transactional
     public Vote castVote(UUID agendaId, String associateId, VoteOption option) {
         VotingSession session = findSession(agendaId);
@@ -87,6 +83,7 @@ public class VotingService {
         if (voteRepository.existsByVotingSessionIdAndAssociateId(session.getId(), normalizedAssociateId)) {
             throw duplicateVote(agendaId);
         }
+        eligibilityPolicy.assertEligible(normalizedAssociateId);
 
         Vote vote = Vote.cast(session, normalizedAssociateId, option, now);
         try {
@@ -102,30 +99,26 @@ public class VotingService {
         }
     }
 
-    /**
-     * Retorna a contagem corrente e somente consolida o resultado após o fechamento.
-     */
     @Transactional(readOnly = true)
     public VotingSummary getResult(UUID agendaId) {
         VotingSession session = findSession(agendaId);
-        long yesVotes = 0;
-        long noVotes = 0;
-        for (VoteRepository.VoteCount count : voteRepository.countBySessionId(session.getId())) {
-            if (count.getOption() == VoteOption.YES) {
-                yesVotes = count.getTotal();
-            } else {
-                noVotes = count.getTotal();
-            }
-        }
+        Map<VoteOption, Long> counts = voteRepository.countBySessionId(session.getId()).stream()
+                .collect(Collectors.toUnmodifiableMap(
+                        VoteRepository.VoteCount::getOption,
+                        VoteRepository.VoteCount::getTotal));
+        long yesVotes = counts.getOrDefault(VoteOption.YES, 0L);
+        long noVotes = counts.getOrDefault(VoteOption.NO, 0L);
 
         VotingSessionStatus status = session.statusAt(clock.instant());
-        VotingResult result = calculateResult(status, yesVotes, noVotes);
-        return new VotingSummary(agendaId, session.getId(), status, yesVotes, noVotes, result);
+        return new VotingSummary(
+                agendaId,
+                session.getId(),
+                status,
+                yesVotes,
+                noVotes,
+                calculateResult(status, yesVotes, noVotes));
     }
 
-    /**
-     * Consulta o estado corrente da sessão sem exigir que ela já exista.
-     */
     @Transactional(readOnly = true)
     public Optional<VotingSessionStatus> findSessionStatus(UUID agendaId) {
         Instant now = clock.instant();
@@ -141,16 +134,18 @@ public class VotingService {
     }
 
     private VotingResult calculateResult(VotingSessionStatus status, long yesVotes, long noVotes) {
-        if (status == VotingSessionStatus.OPEN) {
-            return VotingResult.IN_PROGRESS;
-        }
-        if (yesVotes > noVotes) {
-            return VotingResult.APPROVED;
-        }
-        if (noVotes > yesVotes) {
-            return VotingResult.REJECTED;
-        }
-        return VotingResult.TIED;
+        return switch (status) {
+            case OPEN -> VotingResult.IN_PROGRESS;
+            case CLOSED -> {
+                if (yesVotes > noVotes) {
+                    yield VotingResult.APPROVED;
+                }
+                if (noVotes > yesVotes) {
+                    yield VotingResult.REJECTED;
+                }
+                yield VotingResult.TIED;
+            }
+        };
     }
 
     private ApiException sessionAlreadyExists(UUID agendaId) {
