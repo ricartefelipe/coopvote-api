@@ -18,12 +18,12 @@ publicadas antes de comporem uma release.
 
 ## Endereços de verificação
 
-Substitua `<URL>` pelo endereço HTTPS informado pelo Render:
+Ambiente publicado para avaliação: `https://coopvote-api.onrender.com`.
 
-- saúde: `<URL>/actuator/health`;
-- Swagger UI: `<URL>/swagger-ui.html`;
-- OpenAPI JSON: `<URL>/api-docs`;
-- entrada do aplicativo: `POST <URL>/api/v1/mobile`.
+- saúde: `https://coopvote-api.onrender.com/actuator/health`;
+- Swagger UI: `https://coopvote-api.onrender.com/swagger-ui.html`;
+- OpenAPI JSON: `https://coopvote-api.onrender.com/api-docs`;
+- entrada do aplicativo: `POST https://coopvote-api.onrender.com/api/v1/mobile`.
 
 O domínio usado nos callbacks mobile é derivado automaticamente do endereço público do serviço.
 
@@ -32,7 +32,7 @@ O domínio usado nos callbacks mobile é derivado automaticamente do endereço p
 No PowerShell, execute:
 
 ```powershell
-.\scripts\smoke-test.ps1 -BaseUrl <URL>
+.\scripts\smoke-test.ps1 -BaseUrl https://coopvote-api.onrender.com
 ```
 
 O teste cria uma pauta identificada como smoke test, abre uma sessão, registra um voto, confere a
