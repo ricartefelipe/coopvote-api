@@ -5,6 +5,12 @@ Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- virtual threads no servidor HTTP;
+- verificação de elegibilidade por CPF, sem alterar o voto por identificador opaco;
+- teste de apuração com dois mil votos persistidos.
+
 ## [0.3.2] - 2026-08-30
 
 ### Fixed

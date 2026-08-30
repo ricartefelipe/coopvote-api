@@ -8,10 +8,10 @@ import com.felipericarte.coopvote.mobile.api.SelectionScreen;
 import com.felipericarte.coopvote.voting.VotingResult;
 import com.felipericarte.coopvote.voting.VotingSessionStatus;
 import com.felipericarte.coopvote.voting.VotingSummary;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Stream;
 import org.springframework.stereotype.Component;
 
 /**
@@ -27,11 +27,11 @@ public class MobileScreenFactory {
     }
 
     public SelectionScreen home(List<Agenda> agendas) {
-        List<MobileAction> items = new ArrayList<>();
-        items.add(MobileAction.callback("Cadastrar nova pauta", callbackUrls.create("/agendas/new")));
-        agendas.forEach(agenda -> items.add(MobileAction.callback(
-                agenda.getTitle(), callbackUrls.create("/agendas/" + agenda.getId()))));
-        return new SelectionScreen("Pautas", items);
+        return new SelectionScreen("Pautas", Stream.concat(
+                Stream.of(MobileAction.callback("Cadastrar nova pauta", callbackUrls.create("/agendas/new"))),
+                agendas.stream().map(agenda -> MobileAction.callback(
+                        agenda.getTitle(), callbackUrls.create("/agendas/" + agenda.getId()))))
+                .toList());
     }
 
     public FormScreen newAgenda() {
@@ -48,20 +48,22 @@ public class MobileScreenFactory {
     public SelectionScreen agendaActions(
             Agenda agenda,
             Optional<VotingSessionStatus> sessionStatus) {
-        List<MobileAction> items = new ArrayList<>();
-        if (sessionStatus.isEmpty()) {
-            items.add(MobileAction.callback(
-                    "Abrir sessão de votação",
-                    callbackUrls.create("/agendas/" + agenda.getId() + "/voting-sessions/new")));
-        } else if (sessionStatus.get() == VotingSessionStatus.OPEN) {
-            items.add(MobileAction.callback(
-                    "Votar",
-                    callbackUrls.create("/agendas/" + agenda.getId() + "/votes/new")));
-            items.add(resultAction(agenda));
-        } else {
-            items.add(resultAction(agenda));
-        }
-        items.add(MobileAction.callback("Voltar às pautas", callbackUrls.create("/")));
+        List<MobileAction> items = switch (sessionStatus.orElse(null)) {
+            case null -> List.of(
+                    MobileAction.callback(
+                            "Abrir sessão de votação",
+                            callbackUrls.create("/agendas/" + agenda.getId() + "/voting-sessions/new")),
+                    MobileAction.callback("Voltar às pautas", callbackUrls.create("/")));
+            case OPEN -> List.of(
+                    MobileAction.callback(
+                            "Votar",
+                            callbackUrls.create("/agendas/" + agenda.getId() + "/votes/new")),
+                    resultAction(agenda),
+                    MobileAction.callback("Voltar às pautas", callbackUrls.create("/")));
+            case CLOSED -> List.of(
+                    resultAction(agenda),
+                    MobileAction.callback("Voltar às pautas", callbackUrls.create("/")));
+        };
         return new SelectionScreen(agenda.getTitle(), items);
     }
 
@@ -85,7 +87,7 @@ public class MobileScreenFactory {
                 "Registrar voto",
                 List.of(
                         FormItem.text(agenda.getTitle()),
-                        FormItem.textInput("associateId", "Identificador do associado")),
+                        FormItem.textInput("associateId", "Identificador do associado ou CPF")),
                 MobileAction.callback("Sim", voteUrl, Map.of("vote", "Sim")),
                 MobileAction.callback("Não", voteUrl, Map.of("vote", "Não")));
     }

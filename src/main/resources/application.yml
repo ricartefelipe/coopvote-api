@@ -21,6 +21,9 @@ spring:
   mvc:
     problemdetails:
       enabled: true
+  threads:
+    virtual:
+      enabled: true
 
 server:
   port: ${PORT:8080}
@@ -49,6 +52,10 @@ springdoc:
 coopvote:
   mobile:
     callback-base-url: ${CALLBACK_BASE_URL:http://localhost:8080}
+  eligibility:
+    enabled: ${ELIGIBILITY_ENABLED:true}
+    base-url: ${ELIGIBILITY_BASE_URL:https://user-info.herokuapp.com}
+    timeout: ${ELIGIBILITY_TIMEOUT:2s}
 
 logging:
   structured:
