@@ -21,6 +21,8 @@ acesso após um período de inatividade.
 - votos `Sim` ou `Não`, limitados a um voto por associado em cada pauta;
 - encerramento calculado pelo relógio, sem processo agendado;
 - apuração agregada pelo banco, adequada a grandes volumes;
+- virtual threads no processamento HTTP;
+- verificação de elegibilidade quando o identificador do associado é um CPF;
 - mensagens `FORMULARIO` e `SELECAO` para o fluxo server-driven do aplicativo mobile;
 - callbacks mobile absolutos com domínio alterável por configuração;
 - respostas de erro no padrão Problem Details;
@@ -98,6 +100,9 @@ resultados JUnit, o relatório JaCoCo e o arquivo executável como artefatos por
 | `DB_POOL_SIZE` | `20` | máximo de conexões no pool |
 | `DB_POOL_MIN_IDLE` | `5` | mínimo de conexões ociosas |
 | `CALLBACK_BASE_URL` | `http://localhost:8080` | domínio usado nas URLs de callback do cliente mobile |
+| `ELIGIBILITY_ENABLED` | `true` | consulta o serviço externo quando o identificador é um CPF |
+| `ELIGIBILITY_BASE_URL` | `https://user-info.herokuapp.com` | base do serviço de elegibilidade |
+| `ELIGIBILITY_TIMEOUT` | `2s` | tempo máximo da consulta de elegibilidade |
 | `PORT` | `8080` | porta HTTP da aplicação |
 
 Credenciais padrão existem apenas para desenvolvimento local. Ambientes compartilhados devem

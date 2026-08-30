@@ -70,6 +70,10 @@ Content-Type: application/json
 
 `vote` aceita exclusivamente `Sim` ou `Não`. A resposta `201 Created` confirma o registro.
 
+Quando `associateId` contém 11 dígitos, a API trata o valor como CPF: valida os dígitos
+verificadores e consulta o serviço de elegibilidade. Identificadores que não são CPF não passam por
+essa consulta. Se o serviço externo não responder a tempo, o voto é aceito.
+
 ## Consultar apuração
 
 ```http
@@ -108,6 +112,8 @@ Resultados possíveis: `IN_PROGRESS`, `APPROVED`, `REJECTED` e `TIED`.
 | Código | HTTP | Situação |
 |---|---:|---|
 | `VALIDATION_ERROR` | 400 | campos ou parâmetros inválidos |
+| `INVALID_CPF` | 400 ou 404 | CPF com dígitos inválidos ou não encontrado no serviço externo |
+| `ASSOCIATE_UNABLE_TO_VOTE` | 403 | o serviço externo impediu o associado de votar |
 | `INVALID_REQUEST_BODY` | 400 | JSON ausente ou malformado |
 | `INVALID_PARAMETER` | 400 | identificador em formato inválido |
 | `RESOURCE_NOT_FOUND` | 404 | rota inexistente |
