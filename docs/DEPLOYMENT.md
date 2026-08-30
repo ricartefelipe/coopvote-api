@@ -38,6 +38,15 @@ No PowerShell, execute:
 O teste cria uma pauta identificada como smoke test, abre uma sessão, registra um voto, confere a
 apuração e valida a rejeição de voto duplicado. O resultado esperado contém `status = PASSED`.
 
+Para percorrer também o protocolo server-driven publicado, execute:
+
+```powershell
+.\scripts\mobile-smoke-test.ps1 -BaseUrl https://coopvote-api.onrender.com
+```
+
+Esse teste valida as telas `SELECAO` e `FORMULARIO`, o domínio dos callbacks, a abertura da sessão,
+o voto e a tela de apuração.
+
 ## Limitações do ambiente gratuito
 
 O serviço pode suspender após um período sem acessos, causando demora na primeira requisição. O
