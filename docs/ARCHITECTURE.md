@@ -16,6 +16,8 @@ HTTP / JSON
     |                    regras temporais
     |
     +-- mobile.api ----- MobileScreenFactory
+    |
+    +-- eligibility ---- UserInfoClient
                                |
                          AgendaService + VotingService
 
@@ -27,6 +29,7 @@ Os módulos atuais são:
 - `agenda`: cadastro, consulta e persistência das pautas;
 - `voting`: sessão, voto, unicidade e apuração;
 - `mobile`: adaptação do domínio para mensagens `FORMULARIO` e `SELECAO`;
+- `eligibility`: consulta opcional de CPF ao serviço externo, sem alterar o voto por ID opaco;
 - `shared`: configuração transversal, correlação HTTP e tratamento de erros.
 
 Controllers limitam-se ao contrato HTTP. Services delimitam casos de uso e transações. Entidades
@@ -64,7 +67,19 @@ a autoridade final e evita dois votos quando requisições concorrentes passam j
 ### Apuração no banco
 
 `VoteRepository` agrupa por opção e retorna somente as contagens. O consumo de memória da API não
-cresce com a quantidade de votos.
+cresce com a quantidade de votos. A suíte inclui um teste com dois mil votos persistidos.
+
+### Virtual threads
+
+O servidor HTTP usa virtual threads do Java 21. A decisão favorece o cenário de muitos associados
+votando ao mesmo tempo, sem mudar o modelo transacional nem introduzir filas.
+
+### Elegibilidade por CPF
+
+Quando o `associateId` contém 11 dígitos, a API valida o CPF e consulta
+`GET {baseUrl}/users/{cpf}`. Identificadores que não são CPF seguem o fluxo original. Se o serviço
+externo estiver indisponível ou exceder o timeout, o voto prossegue e o evento é registrado em
+`WARN`, para a dependência externa não impedir a assembleia.
 
 ### Persistência e migrations
 
@@ -90,6 +105,5 @@ erro. O Actuator expõe `health`, `info` e `metrics`.
 - cache de resultados, desnecessário sem uma meta de carga demonstrada;
 - mensageria, pois o fluxo atual é síncrono e transacional;
 - separação em microsserviços, sem fronteira operacional que justifique o custo;
-- integração de elegibilidade por CPF, tratada como bônus e dependente de serviço externo;
 - paginação de pautas no protocolo mobile, pois o anexo não define paginação e o escopo esperado é
   reduzido.

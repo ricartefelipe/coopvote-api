@@ -19,3 +19,5 @@ logging:
 coopvote:
   mobile:
     callback-base-url: http://mobile.test:9090
+  eligibility:
+    enabled: false
