@@ -21,7 +21,10 @@
 | Erros e exceções | Problem Details e códigos de negócio |
 | Documentação da API | Swagger UI e OpenAPI JSON |
 | Logs | JSON estruturado e correlação por requisição |
-| Testes | domínio, serviços, HTTP, persistência e concorrência |
+| Testes | domínio, serviços, HTTP, persistência, concorrência e volume |
+| Elegibilidade por CPF | consulta ao serviço externo quando o identificador é um CPF |
+| Versionamento da API | prefixo `/api/v1` |
+| Virtual threads | `spring.threads.virtual.enabled` |
 
 ## Premissas adotadas
 
@@ -35,7 +38,8 @@ adotadas estas premissas:
 5. A contagem pode ser consultada durante a sessão, mas o resultado é `IN_PROGRESS`.
 6. Após o fechamento, maioria de `Sim` aprova, maioria de `Não` rejeita e contagens iguais empatam.
 7. Uma sessão sem votos termina empatada.
-8. O identificador do associado é um texto opaco de até 100 caracteres; não é presumido como CPF.
+8. O identificador do associado é um texto opaco de até 100 caracteres. Somente valores com 11
+   dígitos são tratados como CPF.
 9. IDs de recursos são UUIDs gerados pelo servidor.
 10. Horários do contrato são instantes ISO 8601 em UTC.
 11. Não foi criado endpoint de domínio para atualização, exclusão ou listagem de pautas porque não
@@ -59,8 +63,7 @@ aplicativo:
 | Consulta de parcial e momento da apuração não são definidos | parcial liberada com resultado `IN_PROGRESS` |
 | Critério de aprovação e comportamento de empate não são definidos | adotada maioria simples e empate explícito |
 | Campos que compõem uma pauta não são definidos | adotados título e descrição |
-| Relação entre ID único e CPF do bônus não é definida | o núcleo usa ID opaco; CPF não foi acoplado ao voto |
-| Respostas completas do serviço externo não constam no texto | o bônus de elegibilidade não foi implementado nesta versão |
-| Serviço externo informado pode estar indisponível e responde aleatoriamente | faltam política de indisponibilidade e estratégia determinística de testes |
-| Não há metas de latência, vazão ou volume para performance | estrutura otimizada, mas sem critério objetivo de aceite de carga |
+| Relação entre ID único e CPF do bônus não é definida | CPF é reconhecido só quando há 11 dígitos |
+| Serviço externo informado pode estar indisponível e responde aleatoriamente | timeout curto, testes com dublê e voto liberado se o serviço falhar |
+| Não há metas de latência, vazão ou volume para performance | apuração no banco e teste com 2.000 votos abaixo de 1s |
 | Status HTTP e formato de erros não são especificados | adotadas semânticas REST e Problem Details |
