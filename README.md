@@ -4,6 +4,16 @@ API REST para cadastrar pautas, abrir sessões temporizadas, receber os votos do
 publicar a apuração. O projeto prioriza um desenho simples, regras de negócio explícitas e
 execução reproduzível.
 
+## Ambiente publicado
+
+- API: `https://coopvote-api.onrender.com`
+- Swagger UI: `https://coopvote-api.onrender.com/swagger-ui.html`
+- contrato OpenAPI JSON: `https://coopvote-api.onrender.com/api-docs`
+- entrada do aplicativo: `POST https://coopvote-api.onrender.com/api/v1/mobile`
+
+O ambiente usa um plano gratuito e pode levar cerca de dois minutos para responder ao primeiro
+acesso após um período de inatividade.
+
 ## Funcionalidades
 
 - cadastro e consulta de pautas;
