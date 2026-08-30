@@ -10,6 +10,10 @@ O fluxo não possui regras de negócio próprias: cadastro, sessão, voto e apur
 services da API de domínio. O valor de `CALLBACK_BASE_URL` define o esquema, host e porta de todas
 as URLs entregues ao cliente.
 
+Se a sessão já encerrou, `POST /votes/new` e `POST /votes` devolvem a tela de resultado em vez do
+formulário de voto. A duração sugerida no formulário de abertura é 10 minutos; o padrão da API
+continua sendo 1 minuto quando o campo não é enviado.
+
 ## Tela SELECAO
 
 Uma seleção contém título e itens acionáveis:

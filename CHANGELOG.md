@@ -5,6 +5,13 @@ Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-08-30
+
+### Fixed
+
+- fluxo mobile de voto em sessão encerrada passa a mostrar o resultado, sem erro em inglês;
+- mensagens de negócio do voto e da elegibilidade em português.
+
 ## [0.4.0] - 2026-08-30
 
 ### Added
