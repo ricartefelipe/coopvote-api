@@ -3,11 +3,13 @@ package com.felipericarte.coopvote.voting;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.felipericarte.coopvote.agenda.Agenda;
 import com.felipericarte.coopvote.agenda.AgendaService;
+import com.felipericarte.coopvote.eligibility.AssociateEligibilityPolicy;
 import com.felipericarte.coopvote.shared.error.ApiException;
 import java.time.Clock;
 import java.time.Duration;
@@ -40,6 +42,9 @@ class VotingServiceTest {
     @Mock
     private VoteRepository voteRepository;
 
+    @Mock
+    private AssociateEligibilityPolicy eligibilityPolicy;
+
     private VotingService service;
 
     @BeforeEach
@@ -48,6 +53,7 @@ class VotingServiceTest {
                 agendaService,
                 sessionRepository,
                 voteRepository,
+                eligibilityPolicy,
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
@@ -86,6 +92,20 @@ class VotingServiceTest {
         assertThatThrownBy(() -> service.castVote(agenda.getId(), " associate-1 ", VoteOption.YES))
                 .isInstanceOfSatisfying(ApiException.class, exception ->
                         assertThat(exception.getCode()).isEqualTo("DUPLICATE_VOTE"));
+    }
+
+    @Test
+    void shouldRejectIneligibleAssociate() {
+        Agenda agenda = Agenda.create("Nova sede", null, NOW);
+        VotingSession session = VotingSession.open(agenda, NOW, Duration.ofMinutes(1));
+        when(sessionRepository.findByAgendaId(agenda.getId())).thenReturn(Optional.of(session));
+        doThrow(ApiException.forbidden("ASSOCIATE_UNABLE_TO_VOTE", "blocked"))
+                .when(eligibilityPolicy)
+                .assertEligible("associate-1");
+
+        assertThatThrownBy(() -> service.castVote(agenda.getId(), "associate-1", VoteOption.YES))
+                .isInstanceOfSatisfying(ApiException.class, exception ->
+                        assertThat(exception.getCode()).isEqualTo("ASSOCIATE_UNABLE_TO_VOTE"));
     }
 
     @Test

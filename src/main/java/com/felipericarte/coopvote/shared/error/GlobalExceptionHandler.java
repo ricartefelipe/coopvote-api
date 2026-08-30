@@ -7,6 +7,7 @@ import java.net.URI;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpMethod;
@@ -54,10 +55,12 @@ public class GlobalExceptionHandler {
     ResponseEntity<ProblemDetail> handleValidation(
             MethodArgumentNotValidException exception,
             HttpServletRequest request) {
-        Map<String, String> errors = new LinkedHashMap<>();
-        for (FieldError error : exception.getBindingResult().getFieldErrors()) {
-            errors.putIfAbsent(error.getField(), error.getDefaultMessage());
-        }
+        Map<String, String> errors = exception.getBindingResult().getFieldErrors().stream()
+                .collect(Collectors.toMap(
+                        FieldError::getField,
+                        FieldError::getDefaultMessage,
+                        (first, ignored) -> first,
+                        LinkedHashMap::new));
 
         return response(
                 HttpStatus.BAD_REQUEST,

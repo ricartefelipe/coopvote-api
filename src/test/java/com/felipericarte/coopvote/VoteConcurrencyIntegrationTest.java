@@ -72,8 +72,7 @@ class VoteConcurrencyIntegrationTest {
             }
         };
 
-        var executor = Executors.newFixedThreadPool(2);
-        try {
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
             Future<String> first = executor.submit(vote);
             Future<String> second = executor.submit(vote);
             start.countDown();
@@ -81,8 +80,6 @@ class VoteConcurrencyIntegrationTest {
             assertThat(List.of(first.get(), second.get()))
                     .containsExactlyInAnyOrder("accepted", "DUPLICATE_VOTE");
             assertThat(voteRepository.count()).isEqualTo(1);
-        } finally {
-            executor.shutdownNow();
         }
     }
 }
