@@ -5,6 +5,11 @@ Semantic Versioning.
 
 ## [Unreleased]
 
+### Fixed
+
+- respostas `404` e `405` para rotas inexistentes e métodos HTTP não suportados, sem convertê-los
+  em falhas internas.
+
 ## [0.3.1] - 2026-08-29
 
 ### Fixed
