@@ -1,6 +1,7 @@
 # Contrato da API
 
-Base path: `/api/v1`
+Base path: `/api/v1`. Versão do contrato: `1.0.0` (campo `info.version` de `/api-docs`; cópia
+versionada em [`openapi.json`](openapi.json)).
 
 Datas usam ISO 8601 em UTC. Corpos usam UTF-8 e `application/json`. A especificação executável está
 disponível em `/api-docs` e a interface Swagger em `/swagger-ui.html`.
@@ -8,123 +9,123 @@ disponível em `/api-docs` e a interface Swagger em `/swagger-ui.html`.
 O fluxo próprio do aplicativo mobile também faz parte desta API e está detalhado em
 [`MOBILE.md`](MOBILE.md).
 
-## Cadastrar pauta
+## Autenticação e papéis
+
+Toda rota de negócio exige `Authorization: Bearer <token>`. O token é emitido pelo login com a
+credencial local do associado e carrega `iss`, `aud`, `sub` (identificador do associado), `roles` e
+`exp` (padrão 30 minutos). Sem token, token inválido, expirado ou com assinatura/issuer/audience
+diferentes a resposta é `401`.
+
+```http
+POST /api/v1/auth/login
+Content-Type: application/json
+
+{ "associateId": "associado-1", "password": "..." }
+```
+
+Resposta `200 OK` (`Cache-Control: no-store`):
+
+```json
+{ "tokenType": "Bearer", "accessToken": "<jwt>", "expiresAt": "2026-08-28T10:30:00Z", "roles": ["VOTER"] }
+```
+
+Credencial inválida, associado inexistente ou inativo recebem `401 INVALID_CREDENTIALS`, sem
+distinguir a causa.
+
+| Papel | Pode |
+|---|---|
+| `VOTER` | votar e consultar o próprio recibo; ver apuração final (parciais ocultas) |
+| `MANAGER` | cadastrar pautas, abrir sessões e ver parciais; também vota se tiver `VOTER` |
+| `AUDITOR` | ver parciais e resultado; não vota nem gere |
+
+Operação sem o papel exigido responde `403 FORBIDDEN`.
+
+## Cadastrar pauta (MANAGER)
 
 ```http
 POST /api/v1/agendas
+Authorization: Bearer <token>
 Content-Type: application/json
 
-{
-  "title": "Construção de uma nova sede",
-  "description": "Deliberação sobre a proposta do conselho."
-}
+{ "title": "Construção de uma nova sede", "description": "Deliberação sobre a proposta do conselho." }
 ```
 
-Resposta `201 Created`:
+Resposta `201 Created` com `id`, `title`, `description`, `createdAt` e o cabeçalho `Location`
+apontando para `GET /api/v1/agendas/{agendaId}`.
 
-```json
-{
-  "id": "f5bcf2b0-b24d-4e83-9e26-87b9a1a5264a",
-  "title": "Construção de uma nova sede",
-  "description": "Deliberação sobre a proposta do conselho.",
-  "createdAt": "2026-08-28T10:00:00Z"
-}
-```
-
-O cabeçalho `Location` aponta para `GET /api/v1/agendas/{agendaId}`.
-
-## Abrir sessão
+## Abrir sessão (MANAGER)
 
 ```http
 POST /api/v1/agendas/{agendaId}/voting-sessions
+Authorization: Bearer <token>
 Content-Type: application/json
 
-{
-  "durationMinutes": 5
-}
+{ "durationMinutes": 5 }
 ```
 
-O corpo pode ser omitido; nesse caso a duração é de um minuto. A resposta é `201 Created`:
+O corpo pode ser omitido; nesse caso a duração é de um minuto. Resposta `201 Created` com `id`,
+`agendaId`, `openedAt`, `closesAt` e `status`. Uma pauta tem no máximo uma sessão (`409
+VOTING_SESSION_ALREADY_EXISTS`).
 
-```json
-{
-  "id": "b74014f7-52db-41d2-ad4c-6a84c8f5803b",
-  "agendaId": "f5bcf2b0-b24d-4e83-9e26-87b9a1a5264a",
-  "openedAt": "2026-08-28T10:00:00Z",
-  "closesAt": "2026-08-28T10:05:00Z",
-  "status": "OPEN"
-}
-```
-
-## Votar
+## Votar (VOTER)
 
 ```http
 POST /api/v1/agendas/{agendaId}/votes
+Authorization: Bearer <token>
 Content-Type: application/json
 
-{
-  "associateId": "associate-123",
-  "vote": "Sim"
-}
+{ "vote": "Sim" }
 ```
 
-`vote` aceita exclusivamente `Sim` ou `Não`. A resposta `201 Created` confirma o registro.
+O eleitor é o sujeito do token; qualquer `associateId` enviado no corpo é ignorado. A sessão
+precisa estar aberta **no instante da gravação** (relógio do servidor): a elegibilidade externa é
+consultada antes e fora da transação, e o prazo é revalidado logo antes de persistir. Resposta
+`201 Created`:
 
-Quando `associateId` contém 11 dígitos, a API trata o valor como CPF: valida os dígitos
-verificadores e consulta o serviço de elegibilidade. Identificadores que não são CPF não passam por
-essa consulta. Se o serviço externo não responder a tempo, o voto é aceito.
+```json
+{ "id": "…", "agendaId": "…", "associateId": "associado-1", "vote": "Sim", "castAt": "2026-08-28T10:01:00Z" }
+```
+
+| Situação | Resposta |
+|---|---|
+| sessão inexistente | `404 VOTING_SESSION_NOT_FOUND` |
+| sessão encerrada (inclusive se a elegibilidade respondeu depois do fechamento) | `409 VOTING_SESSION_CLOSED` |
+| segundo voto do mesmo associado (constraint `uk_vote_session_associate`) | `409 DUPLICATE_VOTE` |
+| associado inativo, CPF cadastrado inválido, não encontrado ou inabilitado | `403` (`ASSOCIATE_INACTIVE`, `INVALID_CPF`, `ASSOCIATE_NOT_FOUND`, `ASSOCIATE_UNABLE_TO_VOTE`) |
+| serviço de elegibilidade sem resposta conclusiva | `503 ELIGIBILITY_UNAVAILABLE` — o voto **não** é registrado; tentar de novo |
+
+## Recibo do voto (VOTER)
+
+```http
+GET /api/v1/agendas/{agendaId}/votes/me
+Authorization: Bearer <token>
+```
+
+Devolve o voto do associado autenticado nesta pauta (`200`) ou `404 VOTE_NOT_FOUND`. Depois de um
+timeout o cliente consulta o recibo antes de repetir o envio; repetir o envio nunca duplica o voto.
 
 ## Consultar apuração
 
 ```http
 GET /api/v1/agendas/{agendaId}/result
+Authorization: Bearer <token>
 ```
 
 ```json
-{
-  "agendaId": "f5bcf2b0-b24d-4e83-9e26-87b9a1a5264a",
-  "sessionId": "b74014f7-52db-41d2-ad4c-6a84c8f5803b",
-  "sessionStatus": "CLOSED",
-  "yesVotes": 7,
-  "noVotes": 3,
-  "totalVotes": 10,
-  "result": "APPROVED"
-}
+{ "agendaId": "…", "sessionId": "…", "sessionStatus": "CLOSED", "yesVotes": 2, "noVotes": 1, "totalVotes": 3, "result": "APPROVED" }
 ```
 
-Resultados possíveis: `IN_PROGRESS`, `APPROVED`, `REJECTED` e `TIED`.
+Enquanto `sessionStatus` é `OPEN`, `result` é `IN_PROGRESS` e os totais só aparecem para `MANAGER`
+e `AUDITOR`; para os demais os campos de contagem são omitidos. Após `closesAt` o resultado é
+final e determinístico: só contam votos gravados dentro do período da sessão, e repetir a consulta
+não altera o resultado. Maioria de `Sim` aprova, maioria de `Não` rejeita, igualdade empata.
 
 ## Erros
 
-```json
-{
-  "type": "about:blank",
-  "title": "Conflict",
-  "status": 409,
-  "detail": "Este associado já votou nesta pauta.",
-  "instance": "/api/v1/agendas/.../votes",
-  "code": "DUPLICATE_VOTE",
-  "timestamp": "2026-08-28T10:00:10Z",
-  "correlationId": "7e652469-10f8-4a7c-84b9-4de89af42289"
-}
-```
-
-| Código | HTTP | Situação |
-|---|---:|---|
-| `VALIDATION_ERROR` | 400 | campos ou parâmetros inválidos |
-| `INVALID_CPF` | 400 ou 404 | CPF com dígitos inválidos ou não encontrado no serviço externo |
-| `ASSOCIATE_UNABLE_TO_VOTE` | 403 | o serviço externo impediu o associado de votar |
-| `INVALID_REQUEST_BODY` | 400 | JSON ausente ou malformado |
-| `INVALID_PARAMETER` | 400 | identificador em formato inválido |
-| `RESOURCE_NOT_FOUND` | 404 | rota inexistente |
-| `AGENDA_NOT_FOUND` | 404 | pauta inexistente |
-| `VOTING_SESSION_NOT_FOUND` | 404 | sessão ainda não aberta |
-| `METHOD_NOT_ALLOWED` | 405 | método HTTP não suportado pelo recurso |
-| `VOTING_SESSION_ALREADY_EXISTS` | 409 | tentativa de abrir outra sessão |
-| `VOTING_SESSION_CLOSED` | 409 | voto no fechamento ou após ele |
-| `DUPLICATE_VOTE` | 409 | associado já votou na pauta |
-| `UNSUPPORTED_MEDIA_TYPE` | 415 | `Content-Type` não suportado pelo recurso |
-| `INTERNAL_ERROR` | 500 | falha inesperada sem exposição de detalhes internos |
-
-O cliente pode enviar `X-Correlation-ID` com até 100 caracteres seguros. Valores ausentes ou
-inválidos são substituídos por um UUID, sempre devolvido no mesmo cabeçalho.
+Erros seguem Problem Details (`application/problem+json`) com `status`, `title`, `detail`, `code`
+estável e, em validação, `errors` por campo. Códigos: `AUTHENTICATION_REQUIRED`/`401`,
+`INVALID_CREDENTIALS`, `FORBIDDEN`, `VALIDATION_ERROR`, `INVALID_REQUEST_BODY`, `AGENDA_NOT_FOUND`,
+`VOTING_SESSION_NOT_FOUND`, `VOTING_SESSION_ALREADY_EXISTS`, `VOTING_SESSION_CLOSED`,
+`DUPLICATE_VOTE`, `VOTE_NOT_FOUND`, `ASSOCIATE_INACTIVE`, `INVALID_CPF`, `ASSOCIATE_NOT_FOUND`,
+`ASSOCIATE_UNABLE_TO_VOTE`, `ELIGIBILITY_UNAVAILABLE`. Falhas de banco que não sejam a violação
+de voto único não são traduzidas como duplicidade: respondem `500` sem detalhes técnicos.
