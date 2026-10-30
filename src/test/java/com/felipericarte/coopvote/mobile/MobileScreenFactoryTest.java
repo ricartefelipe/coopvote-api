@@ -10,6 +10,7 @@ import com.felipericarte.coopvote.voting.VotingSessionStatus;
 import com.felipericarte.coopvote.voting.VotingSummary;
 import java.net.URI;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,11 +31,11 @@ class MobileScreenFactoryTest {
 
     @Test
     void shouldOfferOnlyActionsValidForSessionState() {
-        SelectionScreen withoutSession = screens.agendaActions(agenda, Optional.empty());
+        SelectionScreen withoutSession = screens.agendaActions(agenda, Optional.empty(), true);
         SelectionScreen openSession = screens.agendaActions(
-                agenda, Optional.of(VotingSessionStatus.OPEN));
+                agenda, Optional.of(VotingSessionStatus.OPEN), true);
         SelectionScreen closedSession = screens.agendaActions(
-                agenda, Optional.of(VotingSessionStatus.CLOSED));
+                agenda, Optional.of(VotingSessionStatus.CLOSED), true);
 
         assertThat(withoutSession.itens())
                 .extracting(action -> action.texto())
@@ -59,10 +60,29 @@ class MobileScreenFactoryTest {
     }
 
     @Test
+    void shouldHideManagementActionsFromWhoCannotManage() {
+        SelectionScreen home = screens.home(List.of(agenda), false);
+        SelectionScreen withoutSession = screens.agendaActions(agenda, Optional.empty(), false);
+
+        assertThat(home.itens()).extracting(action -> action.texto()).containsExactly(agenda.getTitle());
+        assertThat(withoutSession.itens()).extracting(action -> action.texto()).containsExactly("Voltar às pautas");
+        assertThat(screens.home(List.of(agenda), true).itens().get(0).texto()).isEqualTo("Cadastrar nova pauta");
+    }
+
+    @Test
+    void shouldLabelHiddenPartialCountsWhileSessionIsOpen() {
+        FormScreen result = screens.result(agenda, VotingSummary.inProgressWithoutCounts(agenda.getId(), UUID.randomUUID()));
+
+        assertThat(result.itens().get(2).texto()).isEqualTo("Votos Sim: disponível após o encerramento");
+        assertThat(result.itens().get(5).texto()).isEqualTo("Resultado: Em andamento");
+    }
+
+    @Test
     void shouldPreserveActionBodiesExpectedByTheMobileProtocol() {
         FormScreen vote = screens.vote(agenda);
 
         assertThat(vote.tipo()).isEqualTo("FORMULARIO");
+        assertThat(vote.itens()).extracting(item -> item.id()).doesNotContain("associateId");
         assertThat(vote.botaoOk().body()).containsEntry("vote", "Sim");
         assertThat(vote.botaoCancelar().body()).containsEntry("vote", "Não");
     }
