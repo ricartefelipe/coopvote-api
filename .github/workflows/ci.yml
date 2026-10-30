@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Build, unit and integration tests (PostgreSQL via Testcontainers) and coverage gate
+        run: ./mvnw -B clean verify
+      - name: Count executed tests (fail on zero)
+        run: |
+          total=$(grep -h "Tests run:" target/surefire-reports/*.txt | awk -F'[:,]' '{r+=$2} END{print r+0}')
+          echo "tests executed: $total"
+          test "$total" -gt 0
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-reports
+          path: |
+            target/surefire-reports/
+            target/site/jacoco/
+          retention-days: 7
+
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build final image (same Dockerfile as Compose)
+        run: docker build -t coopvote-api:ci .
+      - name: Scan final image (HIGH/CRITICAL block)
+        run: |
+          mkdir -p "$RUNNER_TEMP/trivy-cache"
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$RUNNER_TEMP/trivy-cache:/root/.cache/trivy" \
+            aquasec/trivy:0.69.3 image --scanners vuln --severity HIGH,CRITICAL --exit-code 1 --skip-version-check coopvote-api:ci
+      - name: Smoke the image against PostgreSQL (login, agenda, session, vote, result)
+        run: |
+          export API_PORT=18080 DB_PORT=15432
+          docker compose up -d --wait
+          bash scripts/smoke-test.sh http://127.0.0.1:18080
+          docker compose logs api | tail -20
+          docker compose down
