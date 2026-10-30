@@ -1,0 +1,1112 @@
+{
+  "components": {
+    "schemas": {
+      "AgendaResponse": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "example": "f5bcf2b0-b24d-4e83-9e26-87b9a1a5264a",
+            "format": "uuid",
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "CastVoteRequest": {
+        "properties": {
+          "vote": {
+            "description": "Escolha do associado",
+            "enum": [
+              "Sim",
+              "Não"
+            ],
+            "example": "Sim",
+            "type": "string"
+          }
+        },
+        "required": [
+          "vote"
+        ],
+        "type": "object"
+      },
+      "CreateAgendaRequest": {
+        "properties": {
+          "description": {
+            "example": "Deliberação sobre a proposta apresentada pelo conselho.",
+            "maxLength": 2000,
+            "minLength": 0,
+            "type": "string"
+          },
+          "title": {
+            "example": "Construção de uma nova sede",
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "type": "object"
+      },
+      "FormItem": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "texto": {
+            "type": "string"
+          },
+          "tipo": {
+            "type": "string"
+          },
+          "titulo": {
+            "type": "string"
+          },
+          "valor": {}
+        },
+        "type": "object"
+      },
+      "FormScreen": {
+        "properties": {
+          "botaoCancelar": {
+            "$ref": "#/components/schemas/MobileAction"
+          },
+          "botaoOk": {
+            "$ref": "#/components/schemas/MobileAction"
+          },
+          "itens": {
+            "items": {
+              "$ref": "#/components/schemas/FormItem"
+            },
+            "type": "array"
+          },
+          "tipo": {
+            "type": "string"
+          },
+          "titulo": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "LoginRequest": {
+        "properties": {
+          "associateId": {
+            "example": "associate-123",
+            "maxLength": 100,
+            "minLength": 0,
+            "type": "string"
+          },
+          "password": {
+            "example": "secret",
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "required": [
+          "associateId",
+          "password"
+        ],
+        "type": "object"
+      },
+      "LoginResponse": {
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "tokenType": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "MobileAction": {
+        "properties": {
+          "body": {
+            "additionalProperties": {},
+            "type": "object"
+          },
+          "texto": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "MobileScreen": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/FormScreen"
+          },
+          {
+            "$ref": "#/components/schemas/SelectionScreen"
+          }
+        ]
+      },
+      "OpenVotingSessionRequest": {
+        "properties": {
+          "durationMinutes": {
+            "default": 1,
+            "description": "Duração em minutos; o padrão é 1 minuto",
+            "example": 5,
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "SelectionScreen": {
+        "properties": {
+          "itens": {
+            "items": {
+              "$ref": "#/components/schemas/MobileAction"
+            },
+            "type": "array"
+          },
+          "tipo": {
+            "type": "string"
+          },
+          "titulo": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "VoteResponse": {
+        "properties": {
+          "agendaId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "associateId": {
+            "type": "string"
+          },
+          "castAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "vote": {
+            "enum": [
+              "Sim",
+              "Não"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "VotingResultResponse": {
+        "properties": {
+          "agendaId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "noVotes": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "result": {
+            "enum": [
+              "IN_PROGRESS",
+              "APPROVED",
+              "REJECTED",
+              "TIED"
+            ],
+            "type": "string"
+          },
+          "sessionId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "sessionStatus": {
+            "enum": [
+              "OPEN",
+              "CLOSED"
+            ],
+            "type": "string"
+          },
+          "totalVotes": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "yesVotes": {
+            "description": "Ausente enquanto a sessão está aberta e o solicitante não pode ver parciais",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "VotingSessionResponse": {
+        "properties": {
+          "agendaId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "closesAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "openedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "OPEN",
+              "CLOSED"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "bearer": {
+        "bearerFormat": "JWT",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "API REST para gerenciamento de pautas e votações cooperativas. Rotas de negócio exigem o token Bearer do associado.",
+    "title": "CoopVote API",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/agendas": {
+      "post": {
+        "operationId": "create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAgendaRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgendaResponse"
+                }
+              }
+            },
+            "description": "Pauta cadastrada"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgendaResponse"
+                }
+              }
+            },
+            "description": "Dados inválidos"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgendaResponse"
+                }
+              }
+            },
+            "description": "Sem papel de gestor"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Cadastra uma nova pauta (gestor)",
+        "tags": [
+          "Agendas"
+        ]
+      }
+    },
+    "/api/v1/agendas/{agendaId}": {
+      "get": {
+        "operationId": "getById",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agendaId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgendaResponse"
+                }
+              }
+            },
+            "description": "Pauta encontrada"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgendaResponse"
+                }
+              }
+            },
+            "description": "Pauta inexistente"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Consulta uma pauta pelo identificador",
+        "tags": [
+          "Agendas"
+        ]
+      }
+    },
+    "/api/v1/agendas/{agendaId}/result": {
+      "get": {
+        "operationId": "getResult",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agendaId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/VotingResultResponse"
+                }
+              }
+            },
+            "description": "Apuração encontrada"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/VotingResultResponse"
+                }
+              }
+            },
+            "description": "Sessão inexistente"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Contabiliza os votos e informa o resultado da pauta",
+        "tags": [
+          "Voting"
+        ]
+      }
+    },
+    "/api/v1/agendas/{agendaId}/votes": {
+      "post": {
+        "operationId": "castVote_1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agendaId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CastVoteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoteResponse"
+                }
+              }
+            },
+            "description": "Voto registrado"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoteResponse"
+                }
+              }
+            },
+            "description": "Voto inválido"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoteResponse"
+                }
+              }
+            },
+            "description": "Associado inelegível ou sem papel de eleitor"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoteResponse"
+                }
+              }
+            },
+            "description": "Sessão inexistente"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoteResponse"
+                }
+              }
+            },
+            "description": "Sessão fechada ou voto duplicado"
+          },
+          "503": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoteResponse"
+                }
+              }
+            },
+            "description": "Elegibilidade indisponível; tente novamente"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Registra o voto do associado autenticado",
+        "tags": [
+          "Voting"
+        ]
+      }
+    },
+    "/api/v1/agendas/{agendaId}/votes/me": {
+      "get": {
+        "operationId": "myVote",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agendaId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoteResponse"
+                }
+              }
+            },
+            "description": "Voto encontrado"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoteResponse"
+                }
+              }
+            },
+            "description": "Sessão inexistente ou associado ainda não votou"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Recibo do voto do associado autenticado nesta pauta",
+        "tags": [
+          "Voting"
+        ]
+      }
+    },
+    "/api/v1/agendas/{agendaId}/voting-sessions": {
+      "post": {
+        "operationId": "openSession",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agendaId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenVotingSessionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/VotingSessionResponse"
+                }
+              }
+            },
+            "description": "Sessão aberta"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/VotingSessionResponse"
+                }
+              }
+            },
+            "description": "Duração inválida"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/VotingSessionResponse"
+                }
+              }
+            },
+            "description": "Sem papel de gestor"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/VotingSessionResponse"
+                }
+              }
+            },
+            "description": "Pauta inexistente"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/VotingSessionResponse"
+                }
+              }
+            },
+            "description": "A pauta já possui uma sessão"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Abre a sessão de votação de uma pauta (gestor)",
+        "tags": [
+          "Voting"
+        ]
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "operationId": "login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            },
+            "description": "Token emitido"
+          },
+          "401": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            },
+            "description": "Credenciais inválidas"
+          }
+        },
+        "summary": "Autentica o associado e devolve o token Bearer",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/mobile": {
+      "post": {
+        "operationId": "home",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SelectionScreen"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Abre a lista inicial de pautas",
+        "tags": [
+          "Mobile Screens"
+        ]
+      }
+    },
+    "/api/v1/mobile/": {
+      "post": {
+        "operationId": "home_1",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SelectionScreen"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Abre a lista inicial de pautas",
+        "tags": [
+          "Mobile Screens"
+        ]
+      }
+    },
+    "/api/v1/mobile/agendas": {
+      "post": {
+        "operationId": "createAgenda",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAgendaRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SelectionScreen"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Cadastra uma pauta e apresenta suas ações (gestor)",
+        "tags": [
+          "Mobile Screens"
+        ]
+      }
+    },
+    "/api/v1/mobile/agendas/new": {
+      "post": {
+        "operationId": "newAgenda",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormScreen"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Monta o formulário de cadastro de pauta (gestor)",
+        "tags": [
+          "Mobile Screens"
+        ]
+      }
+    },
+    "/api/v1/mobile/agendas/{agendaId}": {
+      "post": {
+        "operationId": "agendaActions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agendaId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SelectionScreen"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Apresenta as ações disponíveis para uma pauta",
+        "tags": [
+          "Mobile Screens"
+        ]
+      }
+    },
+    "/api/v1/mobile/agendas/{agendaId}/result": {
+      "post": {
+        "operationId": "result",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agendaId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormScreen"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Apresenta a apuração da pauta",
+        "tags": [
+          "Mobile Screens"
+        ]
+      }
+    },
+    "/api/v1/mobile/agendas/{agendaId}/votes": {
+      "post": {
+        "operationId": "castVote",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agendaId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CastVoteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/MobileScreen"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Registra o voto do associado autenticado e reapresenta as ações da pauta",
+        "tags": [
+          "Mobile Screens"
+        ]
+      }
+    },
+    "/api/v1/mobile/agendas/{agendaId}/votes/new": {
+      "post": {
+        "operationId": "newVote",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agendaId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/MobileScreen"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Monta o formulário de votação",
+        "tags": [
+          "Mobile Screens"
+        ]
+      }
+    },
+    "/api/v1/mobile/agendas/{agendaId}/voting-sessions": {
+      "post": {
+        "operationId": "openVotingSession",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agendaId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenVotingSessionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SelectionScreen"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Abre a sessão e apresenta as ações da pauta (gestor)",
+        "tags": [
+          "Mobile Screens"
+        ]
+      }
+    },
+    "/api/v1/mobile/agendas/{agendaId}/voting-sessions/new": {
+      "post": {
+        "operationId": "newVotingSession",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agendaId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormScreen"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Monta o formulário de abertura da sessão (gestor)",
+        "tags": [
+          "Mobile Screens"
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "description": "Generated server url",
+      "url": "http://127.0.0.1:18100"
+    }
+  ],
+  "tags": [
+    {
+      "description": "Abertura, participação e apuração das votações",
+      "name": "Voting"
+    },
+    {
+      "description": "Login do associado e emissão do token de sessão",
+      "name": "Auth"
+    },
+    {
+      "description": "Cadastro e consulta das pautas",
+      "name": "Agendas"
+    },
+    {
+      "description": "Mensagens FORMULARIO e SELECAO para o cliente mobile",
+      "name": "Mobile Screens"
+    }
+  ]
+}

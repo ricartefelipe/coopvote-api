@@ -24,29 +24,27 @@ class AssociateEligibilityServiceTest {
     private UserInfoClient userInfoClient;
 
     @Test
-    void shouldIgnoreOpaqueAssociateIdentifiers() {
+    void shouldSkipLookupForAssociatesWithoutCpf() {
         AssociateEligibilityService service = service(true);
-
-        assertThatCode(() -> service.assertEligible("associate-123")).doesNotThrowAnyException();
+        assertThatCode(() -> service.assertEligible(new VoterIdentity("associate-123", Optional.empty())))
+                .doesNotThrowAnyException();
         verifyNoInteractions(userInfoClient);
     }
 
     @Test
     void shouldSkipLookupWhenDisabled() {
         AssociateEligibilityService service = service(false);
-
-        assertThatCode(() -> service.assertEligible(VALID_CPF)).doesNotThrowAnyException();
+        assertThatCode(() -> service.assertEligible(withCpf(VALID_CPF))).doesNotThrowAnyException();
         verifyNoInteractions(userInfoClient);
     }
 
     @Test
     void shouldRejectInvalidCheckDigitsWithoutCallingTheExternalService() {
         AssociateEligibilityService service = service(true);
-
-        assertThatThrownBy(() -> service.assertEligible("11111111111"))
+        assertThatThrownBy(() -> service.assertEligible(withCpf("11111111111")))
                 .isInstanceOfSatisfying(ApiException.class, exception -> {
                     assertThat(exception.getCode()).isEqualTo("INVALID_CPF");
-                    assertThat(exception.getStatus().value()).isEqualTo(400);
+                    assertThat(exception.getStatus().value()).isEqualTo(403);
                 });
         verifyNoInteractions(userInfoClient);
     }
@@ -55,8 +53,7 @@ class AssociateEligibilityServiceTest {
     void shouldRejectUnableAssociates() {
         when(userInfoClient.findByCpf(VALID_CPF)).thenReturn(Optional.of(EligibilityStatus.UNABLE_TO_VOTE));
         AssociateEligibilityService service = service(true);
-
-        assertThatThrownBy(() -> service.assertEligible(VALID_CPF))
+        assertThatThrownBy(() -> service.assertEligible(withCpf(VALID_CPF)))
                 .isInstanceOfSatisfying(ApiException.class, exception ->
                         assertThat(exception.getCode()).isEqualTo("ASSOCIATE_UNABLE_TO_VOTE"));
     }
@@ -65,26 +62,31 @@ class AssociateEligibilityServiceTest {
     void shouldRejectUnknownCpfsFromTheExternalService() {
         when(userInfoClient.findByCpf(VALID_CPF)).thenReturn(Optional.of(EligibilityStatus.NOT_FOUND));
         AssociateEligibilityService service = service(true);
-
-        assertThatThrownBy(() -> service.assertEligible(VALID_CPF))
+        assertThatThrownBy(() -> service.assertEligible(withCpf(VALID_CPF)))
                 .isInstanceOfSatisfying(ApiException.class, exception ->
-                        assertThat(exception.getCode()).isEqualTo("INVALID_CPF"));
+                        assertThat(exception.getCode()).isEqualTo("ASSOCIATE_NOT_FOUND"));
     }
 
     @Test
     void shouldAllowEligibleAssociates() {
         when(userInfoClient.findByCpf(VALID_CPF)).thenReturn(Optional.of(EligibilityStatus.ABLE_TO_VOTE));
         AssociateEligibilityService service = service(true);
-
-        assertThatCode(() -> service.assertEligible(VALID_CPF)).doesNotThrowAnyException();
+        assertThatCode(() -> service.assertEligible(withCpf(VALID_CPF))).doesNotThrowAnyException();
     }
 
     @Test
-    void shouldProceedWhenTheExternalServiceIsUnavailable() {
+    void shouldFailClosedWhenTheExternalServiceIsUnavailable() {
         when(userInfoClient.findByCpf(VALID_CPF)).thenReturn(Optional.empty());
         AssociateEligibilityService service = service(true);
+        assertThatThrownBy(() -> service.assertEligible(withCpf(VALID_CPF)))
+                .isInstanceOfSatisfying(ApiException.class, exception -> {
+                    assertThat(exception.getCode()).isEqualTo("ELIGIBILITY_UNAVAILABLE");
+                    assertThat(exception.getStatus().value()).isEqualTo(503);
+                });
+    }
 
-        assertThatCode(() -> service.assertEligible(VALID_CPF)).doesNotThrowAnyException();
+    private static VoterIdentity withCpf(String cpf) {
+        return new VoterIdentity("associate-cpf", Optional.of(cpf));
     }
 
     private AssociateEligibilityService service(boolean enabled) {

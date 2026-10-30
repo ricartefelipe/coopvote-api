@@ -5,8 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.felipericarte.coopvote.agenda.Agenda;
 import com.felipericarte.coopvote.agenda.AgendaRepository;
 import com.felipericarte.coopvote.agenda.AgendaService;
+import com.felipericarte.coopvote.support.IntegrationTest;
 import com.felipericarte.coopvote.support.MutableClock;
-import com.felipericarte.coopvote.support.TestClockConfig;
 import com.felipericarte.coopvote.voting.Vote;
 import com.felipericarte.coopvote.voting.VoteOption;
 import com.felipericarte.coopvote.voting.VoteRepository;
@@ -22,13 +22,8 @@ import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
 
-@SpringBootTest
-@ActiveProfiles("test")
-@Import(TestClockConfig.class)
+@IntegrationTest
 class VoteVolumeIntegrationTest {
 
     private static final Instant NOW = Instant.parse("2026-08-28T10:00:00Z");
@@ -71,18 +66,18 @@ class VoteVolumeIntegrationTest {
                         session,
                         "associate-" + index,
                         index <= 1_300 ? VoteOption.YES : VoteOption.NO,
-                        NOW.plusSeconds(index)))
+                        NOW.plusMillis(index)))  // todos dentro do período da sessão
                 .toList();
         voteRepository.saveAll(votes);
         clock.set(NOW.plus(Duration.ofMinutes(11)));
 
         Instant started = Instant.now();
-        VotingSummary summary = votingService.getResult(agenda.getId());
+        VotingSummary summary = votingService.getResult(agenda.getId(), true);
         Duration elapsed = Duration.between(started, Instant.now());
 
-        assertThat(summary.yesVotes()).isEqualTo(1_300);
-        assertThat(summary.noVotes()).isEqualTo(700);
-        assertThat(summary.totalVotes()).isEqualTo(VOLUME);
+        assertThat(summary.yesVotes()).isEqualTo(1_300L);
+        assertThat(summary.noVotes()).isEqualTo(700L);
+        assertThat(summary.totalVotes()).isEqualTo((long) VOLUME);
         assertThat(summary.result()).isEqualTo(VotingResult.APPROVED);
         assertThat(elapsed.toMillis()).isLessThan(1_000);
     }

@@ -50,6 +50,13 @@ springdoc:
     tags-sorter: alpha
 
 coopvote:
+  auth:
+    secret: ${AUTH_JWT_SECRET}
+    issuer: ${AUTH_JWT_ISSUER:coopvote-api}
+    audience: ${AUTH_JWT_AUDIENCE:coopvote-api}
+    token-ttl: ${AUTH_TOKEN_TTL:30m}
+    local-seed:
+      enabled: ${AUTH_LOCAL_SEED:false}
   mobile:
     callback-base-url: ${CALLBACK_BASE_URL:http://localhost:8080}
   eligibility:
@@ -64,3 +71,6 @@ logging:
   level:
     root: INFO
     com.felipericarte.coopvote: INFO
+
+# Sessão do associado: segredo obrigatório (sem padrão), ≥ 32 bytes; tokens HS256 com issuer/audience.
+# coopvote.auth.local-seed.enabled=true cria associados sintéticos; só para a jornada local.

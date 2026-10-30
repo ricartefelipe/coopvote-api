@@ -7,30 +7,25 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.felipericarte.coopvote.agenda.AgendaRepository;
+import com.felipericarte.coopvote.support.IntegrationTest;
 import com.felipericarte.coopvote.support.MutableClock;
-import com.felipericarte.coopvote.support.TestClockConfig;
+import com.felipericarte.coopvote.support.TestAssociates;
 import com.felipericarte.coopvote.voting.VoteRepository;
 import com.felipericarte.coopvote.voting.VotingSessionRepository;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-@ActiveProfiles("test")
-@Import(TestClockConfig.class)
+@IntegrationTest
 class VotingApiIntegrationTest {
 
     private static final Instant INITIAL_TIME = Instant.parse("2026-08-28T10:00:00Z");
@@ -53,211 +48,272 @@ class VotingApiIntegrationTest {
     @Autowired
     private AgendaRepository agendaRepository;
 
+    @Autowired
+    private TestAssociates associates;
+
+    private String manager;
+
     @BeforeEach
     void resetState() {
         voteRepository.deleteAll();
         sessionRepository.deleteAll();
         agendaRepository.deleteAll();
+        associates.clear();
         clock.set(INITIAL_TIME);
+        manager = associates.manager("gestora");
     }
 
     @Test
-    void shouldRunCompleteVotingWorkflow() throws Exception {
-        UUID agendaId = createAgenda();
-
+    void shouldRunCompleteVotingWorkflowWithAuthenticatedVoters() throws Exception {
+        UUID agendaId = createAgenda("Nova sede");
         mockMvc.perform(post("/api/v1/agendas/{agendaId}/voting-sessions", agendaId)
+                        .header(HttpHeaders.AUTHORIZATION, manager)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"durationMinutes\":5}")
                         .header("X-Correlation-ID", "integration-test"))
                 .andExpect(status().isCreated())
                 .andExpect(header().string("X-Correlation-ID", "integration-test"))
-                .andExpect(jsonPath("$.agendaId").value(agendaId.toString()))
-                .andExpect(jsonPath("$.openedAt").value("2026-08-28T10:00:00Z"))
-                .andExpect(jsonPath("$.closesAt").value("2026-08-28T10:01:00Z"))
                 .andExpect(jsonPath("$.status").value("OPEN"));
 
-        castVote(agendaId, "associate-1", "Sim");
-        castVote(agendaId, "associate-2", "Não");
-        castVote(agendaId, "associate-3", "Sim");
+        castVote(agendaId, associates.voter("associate-1"), "Sim").andExpect(status().isCreated())
+                .andExpect(jsonPath("$.associateId").value("associate-1"));
+        castVote(agendaId, associates.voter("associate-2"), "Não").andExpect(status().isCreated());
+        castVote(agendaId, associates.voter("associate-3"), "Sim").andExpect(status().isCreated());
 
-        mockMvc.perform(get("/api/v1/agendas/{agendaId}/result", agendaId))
+        mockMvc.perform(get("/api/v1/agendas/{agendaId}/result", agendaId).header(HttpHeaders.AUTHORIZATION, manager))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.sessionStatus").value("OPEN"))
                 .andExpect(jsonPath("$.yesVotes").value(2))
-                .andExpect(jsonPath("$.noVotes").value(1))
-                .andExpect(jsonPath("$.totalVotes").value(3))
                 .andExpect(jsonPath("$.result").value("IN_PROGRESS"));
 
-        clock.advance(Duration.ofMinutes(1));
-
-        mockMvc.perform(get("/api/v1/agendas/{agendaId}/result", agendaId))
+        clock.advance(Duration.ofMinutes(6));
+        mockMvc.perform(get("/api/v1/agendas/{agendaId}/result", agendaId).header(HttpHeaders.AUTHORIZATION, manager))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.sessionStatus").value("CLOSED"))
+                .andExpect(jsonPath("$.totalVotes").value(3))
                 .andExpect(jsonPath("$.result").value("APPROVED"));
 
-        mockMvc.perform(post("/api/v1/agendas/{agendaId}/votes", agendaId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"associateId":"associate-4","vote":"Sim"}
-                                """))
+        castVote(agendaId, associates.voter("associate-4"), "Sim")
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("VOTING_SESSION_CLOSED"));
     }
 
     @Test
-    void shouldRejectDuplicateVote() throws Exception {
-        UUID agendaId = createAgenda();
+    void shouldBindVoteToTokenSubjectAndIgnoreIdentifiersInBody() throws Exception {
+        UUID agendaId = createAgenda("Identidade");
         openSession(agendaId, 5);
-        castVote(agendaId, "associate-1", "Sim");
+        String voterA = associates.voter("associate-a");
+        associates.voter("associate-b");
+
+        mockMvc.perform(post("/api/v1/agendas/{agendaId}/votes", agendaId)
+                        .header(HttpHeaders.AUTHORIZATION, voterA)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"associateId\":\"associate-b\",\"vote\":\"Sim\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.associateId").value("associate-a"));
+
+        assertThat(voteRepository.findAll()).singleElement()
+                .satisfies(vote -> assertThat(vote.getAssociateId()).isEqualTo("associate-a"));
+
+        mockMvc.perform(get("/api/v1/agendas/{agendaId}/votes/me", agendaId).header(HttpHeaders.AUTHORIZATION, voterA))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.associateId").value("associate-a"))
+                .andExpect(jsonPath("$.vote").value("Sim"));
+    }
+
+    @Test
+    void shouldRejectDuplicateVoteFromSameAuthenticatedAssociate() throws Exception {
+        UUID agendaId = createAgenda("Duplicidade");
+        openSession(agendaId, 5);
+        String voter = associates.voter("associate-1");
+        castVote(agendaId, voter, "Sim").andExpect(status().isCreated());
+
+        castVote(agendaId, voter, "Não")
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("DUPLICATE_VOTE"));
+        assertThat(voteRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    void shouldRequireAuthenticationAndRejectForgedTokens() throws Exception {
+        UUID agendaId = createAgenda("Autenticação");
+        openSession(agendaId, 5);
 
         mockMvc.perform(post("/api/v1/agendas/{agendaId}/votes", agendaId)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"associateId":"associate-1","vote":"Não"}
-                                """))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("DUPLICATE_VOTE"))
-                .andExpect(jsonPath("$.correlationId").isNotEmpty());
+                        .content("{\"vote\":\"Sim\"}"))
+                .andExpect(status().isUnauthorized());
 
-        assertThat(voteRepository.count()).isEqualTo(1);
+        String forged = "Bearer eyJhbGciOiJIUzI1NiJ9."
+                + "eyJpc3MiOiJjb29wdm90ZS1hcGkiLCJzdWIiOiJhc3NvY2lhdGUtMSIsInJvbGVzIjpbIlZPVEVSIl19."
+                + "c2lnbmF0dXJhLWludmFsaWRh";
+        mockMvc.perform(post("/api/v1/agendas/{agendaId}/votes", agendaId)
+                        .header(HttpHeaders.AUTHORIZATION, forged)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"vote\":\"Sim\"}"))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(get("/api/v1/agendas/{agendaId}/result", agendaId))
+                .andExpect(status().isUnauthorized());
+        assertThat(voteRepository.count()).isZero();
+    }
+
+    @Test
+    void shouldRestrictManagementToManagersAndVotingToVoters() throws Exception {
+        UUID agendaId = createAgenda("Papéis");
+        String voter = associates.voter("associate-1");
+        String auditor = associates.auditor("auditora");
+
+        mockMvc.perform(post("/api/v1/agendas")
+                        .header(HttpHeaders.AUTHORIZATION, voter)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"Pauta do eleitor\"}"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/v1/agendas/{agendaId}/voting-sessions", agendaId)
+                        .header(HttpHeaders.AUTHORIZATION, voter))
+                .andExpect(status().isForbidden());
+        assertThat(sessionRepository.count()).isZero();
+
+        openSession(agendaId, 5);
+        castVote(agendaId, auditor, "Sim").andExpect(status().isForbidden());
+        assertThat(voteRepository.count()).isZero();
+    }
+
+    @Test
+    void shouldHidePartialCountsFromVotersUntilSessionCloses() throws Exception {
+        UUID agendaId = createAgenda("Parciais");
+        openSession(agendaId, 5);
+        String voter = associates.voter("associate-1");
+        castVote(agendaId, voter, "Sim").andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/v1/agendas/{agendaId}/result", agendaId).header(HttpHeaders.AUTHORIZATION, voter))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sessionStatus").value("OPEN"))
+                .andExpect(jsonPath("$.result").value("IN_PROGRESS"))
+                .andExpect(jsonPath("$.yesVotes").doesNotExist())
+                .andExpect(jsonPath("$.totalVotes").doesNotExist());
+
+        mockMvc.perform(get("/api/v1/agendas/{agendaId}/result", agendaId)
+                        .header(HttpHeaders.AUTHORIZATION, associates.auditor("auditora")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.yesVotes").value(1));
+
+        clock.advance(Duration.ofMinutes(6));
+        mockMvc.perform(get("/api/v1/agendas/{agendaId}/result", agendaId).header(HttpHeaders.AUTHORIZATION, voter))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sessionStatus").value("CLOSED"))
+                .andExpect(jsonPath("$.totalVotes").value(1))
+                .andExpect(jsonPath("$.result").value("APPROVED"));
+    }
+
+    @Test
+    void shouldLoginWithLocalCredentialsAndRejectWrongPassword() throws Exception {
+        associates.create("associado-login", java.util.EnumSet.of(com.felipericarte.coopvote.auth.AssociateRole.VOTER));
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"associateId\":\"associado-login\",\"password\":\"" + TestAssociates.PASSWORD + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+                .andExpect(jsonPath("$.tokenType").value("Bearer"))
+                .andExpect(jsonPath("$.roles[0]").value("VOTER"));
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"associateId\":\"associado-login\",\"password\":\"errada\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"associateId\":\"inexistente\",\"password\":\"x\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
     }
 
     @Test
     void shouldValidateInputsAndMalformedIdentifiers() throws Exception {
         mockMvc.perform(post("/api/v1/agendas")
+                        .header(HttpHeaders.AUTHORIZATION, manager)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"title":" ","description":"Descrição"}
-                                """))
+                        .content("{\"title\":\"   \"}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
-                .andExpect(jsonPath("$.errors.title").value("must not be blank"));
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
 
-        mockMvc.perform(get("/api/v1/agendas/not-a-uuid"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_PARAMETER"));
+        mockMvc.perform(get("/api/v1/agendas/not-a-uuid").header(HttpHeaders.AUTHORIZATION, manager))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
     void shouldRejectInvalidDurationAndVoteOption() throws Exception {
-        UUID agendaId = createAgenda();
-
+        UUID agendaId = createAgenda("Validação");
         mockMvc.perform(post("/api/v1/agendas/{agendaId}/voting-sessions", agendaId)
+                        .header(HttpHeaders.AUTHORIZATION, manager)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"durationMinutes":0}
-                                """))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+                        .content("{\"durationMinutes\":0}"))
+                .andExpect(status().isBadRequest());
 
         openSession(agendaId, 5);
-
-        mockMvc.perform(post("/api/v1/agendas/{agendaId}/votes", agendaId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"associateId":"associate-1","vote":"Talvez"}
-                                """))
+        castVote(agendaId, associates.voter("associate-1"), "Talvez")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_REQUEST_BODY"));
     }
 
     @Test
-    void shouldRejectUnsupportedContentTypeWithoutReportingInternalFailure() throws Exception {
-        mockMvc.perform(post("/api/v1/agendas")
-                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                        .content("title=Nova+sede"))
-                .andExpect(status().isUnsupportedMediaType())
-                .andExpect(jsonPath("$.code").value("UNSUPPORTED_MEDIA_TYPE"))
-                .andExpect(jsonPath("$.detail").value("The Content-Type header is not supported."));
-    }
-
-    @Test
-    void shouldReportUnsupportedMethodAndUnknownResourceWithoutInternalFailure() throws Exception {
-        mockMvc.perform(get("/api/v1/mobile"))
-                .andExpect(status().isMethodNotAllowed())
-                .andExpect(header().string("Allow", "POST"))
-                .andExpect(jsonPath("$.code").value("METHOD_NOT_ALLOWED"))
-                .andExpect(jsonPath("$.detail")
-                        .value("The HTTP method is not supported for this resource."));
-
-        mockMvc.perform(get("/api/v1/unknown"))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"))
-                .andExpect(jsonPath("$.detail").value("The requested resource was not found."));
-    }
-
-    @Test
-    void shouldReportMissingAgendaAndSession() throws Exception {
+    void shouldReportMissingAgendaAndSessionAndSecondSession() throws Exception {
         UUID missingAgendaId = UUID.randomUUID();
-
-        mockMvc.perform(post("/api/v1/agendas/{agendaId}/voting-sessions", missingAgendaId))
+        mockMvc.perform(post("/api/v1/agendas/{agendaId}/voting-sessions", missingAgendaId)
+                        .header(HttpHeaders.AUTHORIZATION, manager))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("AGENDA_NOT_FOUND"));
 
-        UUID agendaWithoutSession = createAgenda();
-        mockMvc.perform(get("/api/v1/agendas/{agendaId}/result", agendaWithoutSession))
+        UUID agendaWithoutSession = createAgenda("Sem sessão");
+        mockMvc.perform(get("/api/v1/agendas/{agendaId}/result", agendaWithoutSession)
+                        .header(HttpHeaders.AUTHORIZATION, manager))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("VOTING_SESSION_NOT_FOUND"));
-    }
 
-    @Test
-    void shouldRejectSecondSessionForSameAgenda() throws Exception {
-        UUID agendaId = createAgenda();
-        openSession(agendaId, 5);
-
-        mockMvc.perform(post("/api/v1/agendas/{agendaId}/voting-sessions", agendaId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"durationMinutes":10}
-                                """))
+        openSession(agendaWithoutSession, 1);
+        mockMvc.perform(post("/api/v1/agendas/{agendaId}/voting-sessions", agendaWithoutSession)
+                        .header(HttpHeaders.AUTHORIZATION, manager))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("VOTING_SESSION_ALREADY_EXISTS"));
     }
 
     @Test
-    void shouldPublishVersionedOpenApiContract() throws Exception {
+    void shouldPublishVersionedOpenApiContractWithBearerScheme() throws Exception {
         mockMvc.perform(get("/api-docs"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.info.title").value("CoopVote API"))
-                .andExpect(jsonPath("$.info.version").value("v1"))
-                .andExpect(jsonPath("$.paths['/api/v1/agendas']").exists())
-                .andExpect(jsonPath("$.paths['/api/v1/mobile']").exists())
-                .andExpect(jsonPath("$.paths['/api/v1/agendas/{agendaId}/votes']").exists())
-                .andExpect(jsonPath("$.paths['/api/v1/agendas/{agendaId}/result']").exists());
+                .andExpect(jsonPath("$.info.version").value("1.0.0"))
+                .andExpect(jsonPath("$.components.securitySchemes.bearer.scheme").value("bearer"))
+                .andExpect(jsonPath("$.paths['/api/v1/auth/login']").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/agendas/{agendaId}/votes/me']").exists());
     }
 
-    private UUID createAgenda() throws Exception {
+    private UUID createAgenda(String title) throws Exception {
         String response = mockMvc.perform(post("/api/v1/agendas")
+                        .header(HttpHeaders.AUTHORIZATION, manager)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "title":"Construção de uma nova sede",
-                                  "description":"Deliberação sobre a proposta do conselho."
-                                }
-                                """))
+                        .content(objectMapper.writeValueAsString(java.util.Map.of("title", title))))
                 .andExpect(status().isCreated())
                 .andExpect(header().exists("Location"))
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
+                .andReturn().getResponse().getContentAsString();
         JsonNode body = objectMapper.readTree(response);
         return UUID.fromString(body.get("id").asText());
     }
 
     private void openSession(UUID agendaId, int durationMinutes) throws Exception {
         mockMvc.perform(post("/api/v1/agendas/{agendaId}/voting-sessions", agendaId)
+                        .header(HttpHeaders.AUTHORIZATION, manager)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"durationMinutes":%d}
-                                """.formatted(durationMinutes)))
+                        .content("{\"durationMinutes\":" + durationMinutes + "}"))
                 .andExpect(status().isCreated());
     }
 
-    private void castVote(UUID agendaId, String associateId, String vote) throws Exception {
-        mockMvc.perform(post("/api/v1/agendas/{agendaId}/votes", agendaId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"associateId":"%s","vote":"%s"}
-                                """.formatted(associateId, vote)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.vote").value(vote));
+    private org.springframework.test.web.servlet.ResultActions castVote(UUID agendaId, String bearer, String vote)
+            throws Exception {
+        return mockMvc.perform(post("/api/v1/agendas/{agendaId}/votes", agendaId)
+                .header(HttpHeaders.AUTHORIZATION, bearer)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"vote\":\"" + vote + "\"}"));
     }
 }

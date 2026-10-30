@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -47,6 +48,21 @@ public class GlobalExceptionHandler {
                 exception.getStatus(),
                 exception.getCode(),
                 exception.getMessage(),
+                request,
+                null);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    ResponseEntity<ProblemDetail> handleAccessDenied(AccessDeniedException exception, HttpServletRequest request) {
+        LOGGER.atWarn()
+                .addKeyValue("errorCode", "FORBIDDEN")
+                .addKeyValue("method", request.getMethod())
+                .addKeyValue("path", request.getRequestURI())
+                .log("Access denied");
+        return response(
+                HttpStatus.FORBIDDEN,
+                "FORBIDDEN",
+                "O associado não tem permissão para esta operação.",
                 request,
                 null);
     }

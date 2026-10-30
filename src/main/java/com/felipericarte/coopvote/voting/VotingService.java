@@ -3,6 +3,7 @@ package com.felipericarte.coopvote.voting;
 import com.felipericarte.coopvote.agenda.Agenda;
 import com.felipericarte.coopvote.agenda.AgendaService;
 import com.felipericarte.coopvote.eligibility.AssociateEligibilityPolicy;
+import com.felipericarte.coopvote.eligibility.VoterIdentity;
 import com.felipericarte.coopvote.shared.error.ApiException;
 import java.time.Clock;
 import java.time.Duration;
@@ -27,6 +28,7 @@ public class VotingService {
     private final AgendaService agendaService;
     private final VotingSessionRepository sessionRepository;
     private final VoteRepository voteRepository;
+    private final VoteRecorder voteRecorder;
     private final AssociateEligibilityPolicy eligibilityPolicy;
     private final Clock clock;
 
@@ -34,11 +36,13 @@ public class VotingService {
             AgendaService agendaService,
             VotingSessionRepository sessionRepository,
             VoteRepository voteRepository,
+            VoteRecorder voteRecorder,
             AssociateEligibilityPolicy eligibilityPolicy,
             Clock clock) {
         this.agendaService = agendaService;
         this.sessionRepository = sessionRepository;
         this.voteRepository = voteRepository;
+        this.voteRecorder = voteRecorder;
         this.eligibilityPolicy = eligibilityPolicy;
         this.clock = clock;
     }
@@ -47,9 +51,8 @@ public class VotingService {
     public VotingSession openSession(UUID agendaId, Integer requestedDurationMinutes) {
         Agenda agenda = agendaService.getById(agendaId);
         if (sessionRepository.existsByAgendaId(agendaId)) {
-            throw sessionAlreadyExists(agendaId);
+            throw sessionAlreadyExists();
         }
-
         int durationMinutes = Optional.ofNullable(requestedDurationMinutes)
                 .orElse(DEFAULT_DURATION_MINUTES);
         VotingSession session = VotingSession.open(
@@ -65,51 +68,55 @@ public class VotingService {
                     .log("Voting session opened");
             return savedSession;
         } catch (DataIntegrityViolationException exception) {
-            throw sessionAlreadyExists(agendaId);
+            throw sessionAlreadyExists();
         }
     }
 
-    @Transactional
-    public Vote castVote(UUID agendaId, String associateId, VoteOption option) {
+    /**
+     * Voto do eleitor autenticado. A elegibilidade (rede) é consultada fora de qualquer transação;
+     * a gravação revalida o prazo e deixa a unicidade para o banco.
+     */
+    public Vote castVote(UUID agendaId, VoterIdentity voter, VoteOption option) {
         VotingSession session = findSession(agendaId);
-        Instant now = clock.instant();
-        if (!session.isOpenAt(now)) {
-            throw ApiException.conflict(
-                    "VOTING_SESSION_CLOSED",
-                    "A sessão de votação já foi encerrada.");
+        if (!session.isOpenAt(clock.instant())) {
+            throw ApiException.conflict("VOTING_SESSION_CLOSED", "A sessão de votação já foi encerrada.");
         }
-
-        String normalizedAssociateId = associateId.trim();
-        if (voteRepository.existsByVotingSessionIdAndAssociateId(session.getId(), normalizedAssociateId)) {
-            throw duplicateVote(agendaId);
+        if (voteRepository.existsByVotingSessionIdAndAssociateId(session.getId(), voter.associateId())) {
+            throw ApiException.conflict("DUPLICATE_VOTE", "Este associado já votou nesta pauta.");
         }
-        eligibilityPolicy.assertEligible(normalizedAssociateId);
-
-        Vote vote = Vote.cast(session, normalizedAssociateId, option, now);
-        try {
-            Vote savedVote = voteRepository.saveAndFlush(vote);
-            LOGGER.atDebug()
-                    .addKeyValue("agendaId", agendaId)
-                    .addKeyValue("sessionId", session.getId())
-                    .addKeyValue("voteId", savedVote.getId())
-                    .log("Vote accepted");
-            return savedVote;
-        } catch (DataIntegrityViolationException exception) {
-            throw duplicateVote(agendaId);
-        }
+        eligibilityPolicy.assertEligible(voter);
+        Vote savedVote = voteRecorder.record(session.getId(), voter.associateId(), option);
+        LOGGER.atDebug()
+                .addKeyValue("agendaId", agendaId)
+                .addKeyValue("sessionId", session.getId())
+                .addKeyValue("voteId", savedVote.getId())
+                .log("Vote accepted");
+        return savedVote;
     }
 
     @Transactional(readOnly = true)
-    public VotingSummary getResult(UUID agendaId) {
+    public Optional<Vote> findReceipt(UUID agendaId, String associateId) {
         VotingSession session = findSession(agendaId);
+        return voteRepository.findByVotingSessionIdAndAssociateId(session.getId(), associateId);
+    }
+
+    /**
+     * Apuração pelo banco. Enquanto a sessão está aberta, os totais só aparecem para quem pode ver
+     * resultado parcial; o resultado final é determinístico e não muda com repetições.
+     */
+    @Transactional(readOnly = true)
+    public VotingSummary getResult(UUID agendaId, boolean partialCountsVisible) {
+        VotingSession session = findSession(agendaId);
+        VotingSessionStatus status = session.statusAt(clock.instant());
+        if (status == VotingSessionStatus.OPEN && !partialCountsVisible) {
+            return VotingSummary.inProgressWithoutCounts(agendaId, session.getId());
+        }
         Map<VoteOption, Long> counts = voteRepository.countBySessionId(session.getId()).stream()
                 .collect(Collectors.toUnmodifiableMap(
                         VoteRepository.VoteCount::getOption,
                         VoteRepository.VoteCount::getTotal));
         long yesVotes = counts.getOrDefault(VoteOption.YES, 0L);
         long noVotes = counts.getOrDefault(VoteOption.NO, 0L);
-
-        VotingSessionStatus status = session.statusAt(clock.instant());
         return new VotingSummary(
                 agendaId,
                 session.getId(),
@@ -148,15 +155,9 @@ public class VotingService {
         };
     }
 
-    private ApiException sessionAlreadyExists(UUID agendaId) {
+    private ApiException sessionAlreadyExists() {
         return ApiException.conflict(
                 "VOTING_SESSION_ALREADY_EXISTS",
                 "Esta pauta já possui uma sessão de votação.");
-    }
-
-    private ApiException duplicateVote(UUID agendaId) {
-        return ApiException.conflict(
-                "DUPLICATE_VOTE",
-                "Este associado já votou nesta pauta.");
     }
 }

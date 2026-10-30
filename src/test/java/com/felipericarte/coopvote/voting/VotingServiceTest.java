@@ -5,11 +5,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.when;
 
 import com.felipericarte.coopvote.agenda.Agenda;
 import com.felipericarte.coopvote.agenda.AgendaService;
 import com.felipericarte.coopvote.eligibility.AssociateEligibilityPolicy;
+import com.felipericarte.coopvote.eligibility.VoterIdentity;
 import com.felipericarte.coopvote.shared.error.ApiException;
 import java.time.Clock;
 import java.time.Duration;
@@ -17,7 +20,6 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,6 +34,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class VotingServiceTest {
 
     private static final Instant NOW = Instant.parse("2026-08-28T10:00:00Z");
+    private static final VoterIdentity VOTER = new VoterIdentity("associate-1", Optional.empty());
 
     @Mock
     private AgendaService agendaService;
@@ -41,6 +44,9 @@ class VotingServiceTest {
 
     @Mock
     private VoteRepository voteRepository;
+
+    @Mock
+    private VoteRecorder voteRecorder;
 
     @Mock
     private AssociateEligibilityPolicy eligibilityPolicy;
@@ -53,6 +59,7 @@ class VotingServiceTest {
                 agendaService,
                 sessionRepository,
                 voteRepository,
+                voteRecorder,
                 eligibilityPolicy,
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
@@ -76,7 +83,7 @@ class VotingServiceTest {
         VotingSession session = VotingSession.open(agenda, NOW.minusSeconds(120), Duration.ofMinutes(1));
         when(sessionRepository.findByAgendaId(agenda.getId())).thenReturn(Optional.of(session));
 
-        assertThatThrownBy(() -> service.castVote(agenda.getId(), "associate-1", VoteOption.YES))
+        assertThatThrownBy(() -> service.castVote(agenda.getId(), VOTER, VoteOption.YES))
                 .isInstanceOfSatisfying(ApiException.class, exception ->
                         assertThat(exception.getCode()).isEqualTo("VOTING_SESSION_CLOSED"));
     }
@@ -89,7 +96,7 @@ class VotingServiceTest {
         when(voteRepository.existsByVotingSessionIdAndAssociateId(session.getId(), "associate-1"))
                 .thenReturn(true);
 
-        assertThatThrownBy(() -> service.castVote(agenda.getId(), " associate-1 ", VoteOption.YES))
+        assertThatThrownBy(() -> service.castVote(agenda.getId(), VOTER, VoteOption.YES))
                 .isInstanceOfSatisfying(ApiException.class, exception ->
                         assertThat(exception.getCode()).isEqualTo("DUPLICATE_VOTE"));
     }
@@ -101,9 +108,9 @@ class VotingServiceTest {
         when(sessionRepository.findByAgendaId(agenda.getId())).thenReturn(Optional.of(session));
         doThrow(ApiException.forbidden("ASSOCIATE_UNABLE_TO_VOTE", "blocked"))
                 .when(eligibilityPolicy)
-                .assertEligible("associate-1");
+                .assertEligible(VOTER);
 
-        assertThatThrownBy(() -> service.castVote(agenda.getId(), "associate-1", VoteOption.YES))
+        assertThatThrownBy(() -> service.castVote(agenda.getId(), VOTER, VoteOption.YES))
                 .isInstanceOfSatisfying(ApiException.class, exception ->
                         assertThat(exception.getCode()).isEqualTo("ASSOCIATE_UNABLE_TO_VOTE"));
     }
@@ -117,7 +124,7 @@ class VotingServiceTest {
                 count(VoteOption.YES, 3),
                 count(VoteOption.NO, 1)));
 
-        VotingSummary summary = service.getResult(agenda.getId());
+        VotingSummary summary = service.getResult(agenda.getId(), true);
 
         assertThat(summary.yesVotes()).isEqualTo(3);
         assertThat(summary.noVotes()).isEqualTo(1);
@@ -136,7 +143,35 @@ class VotingServiceTest {
                 count(VoteOption.YES, yesVotes),
                 count(VoteOption.NO, noVotes)));
 
-        assertThat(service.getResult(agenda.getId()).result()).isEqualTo(expectedResult);
+        assertThat(service.getResult(agenda.getId(), true).result()).isEqualTo(expectedResult);
+    }
+
+    @Test
+    void shouldHideCountsWhileOpenForWhoCannotSeePartialResults() {
+        Agenda agenda = Agenda.create("Nova sede", null, NOW);
+        VotingSession session = VotingSession.open(agenda, NOW, Duration.ofMinutes(1));
+        when(sessionRepository.findByAgendaId(agenda.getId())).thenReturn(Optional.of(session));
+
+        VotingSummary summary = service.getResult(agenda.getId(), false);
+
+        assertThat(summary.countsVisible()).isFalse();
+        assertThat(summary.result()).isEqualTo(VotingResult.IN_PROGRESS);
+        verify(voteRepository, never()).countBySessionId(any());
+    }
+
+    @Test
+    void shouldCheckEligibilityBeforeRecordingAndRecordWithTokenIdentity() {
+        Agenda agenda = Agenda.create("Nova sede", null, NOW);
+        VotingSession session = VotingSession.open(agenda, NOW, Duration.ofMinutes(1));
+        when(sessionRepository.findByAgendaId(agenda.getId())).thenReturn(Optional.of(session));
+        Vote recorded = Vote.cast(session, "associate-1", VoteOption.YES, NOW);
+        when(voteRecorder.record(session.getId(), "associate-1", VoteOption.YES)).thenReturn(recorded);
+
+        assertThat(service.castVote(agenda.getId(), VOTER, VoteOption.YES)).isSameAs(recorded);
+
+        var order = inOrder(eligibilityPolicy, voteRecorder);
+        order.verify(eligibilityPolicy).assertEligible(VOTER);
+        order.verify(voteRecorder).record(session.getId(), "associate-1", VoteOption.YES);
     }
 
     private static Stream<Arguments> finalResults() {

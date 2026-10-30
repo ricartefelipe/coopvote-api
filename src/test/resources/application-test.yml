@@ -1,8 +1,5 @@
+# Banco: PostgreSQL real via Testcontainers (TestcontainersConfig); nada de H2.
 spring:
-  datasource:
-    url: jdbc:h2:mem:coopvote;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE
-    username: sa
-    password:
   jpa:
     hibernate:
       ddl-auto: validate
@@ -17,6 +14,11 @@ logging:
     root: WARN
 
 coopvote:
+  auth:
+    secret: coopvote-test-secret-with-at-least-32-bytes
+    token-ttl: 30m
+    local-seed:
+      enabled: false
   mobile:
     callback-base-url: http://mobile.test:9090
   eligibility:

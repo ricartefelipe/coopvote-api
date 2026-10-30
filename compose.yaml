@@ -23,11 +23,20 @@ services:
       DB_USERNAME: ${DB_USERNAME:-coopvote}
       DB_PASSWORD: ${DB_PASSWORD:-coopvote}
       CALLBACK_BASE_URL: ${CALLBACK_BASE_URL:-http://localhost:8080}
+      # Valor local de desenvolvimento; ambientes compartilhados definem um segredo próprio.
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-coopvote-local-development-secret-with-32-bytes}
+      AUTH_LOCAL_SEED: ${AUTH_LOCAL_SEED:-true}
     ports:
       - "${API_PORT:-8080}:8080"
     depends_on:
       database:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/actuator/health/readiness | grep -q '\"UP\"'"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+      start_period: 20s
 
 volumes:
   postgres_data:

@@ -52,3 +52,10 @@ o voto e a tela de apuração.
 O serviço pode suspender após um período sem acessos, causando demora na primeira requisição. O
 PostgreSQL gratuito expira 30 dias após a criação e não possui backup. Essas limitações são
 aceitáveis somente para a avaliação; uma operação contínua deve usar planos persistentes.
+
+## Deploy não é automático
+
+`render.yaml` está com `autoDeployTrigger: off`: integrar código em `main` não publica nada. O
+deploy continua uma decisão do proprietário, disparado manualmente no Render depois dos gates da CI
+do mesmo commit. O serviço precisa de `AUTH_JWT_SECRET` (≥ 32 bytes) próprio; `AUTH_LOCAL_SEED` deve
+ficar desligado fora da máquina do desenvolvedor.
