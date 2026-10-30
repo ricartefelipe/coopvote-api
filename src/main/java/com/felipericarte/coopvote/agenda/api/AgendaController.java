@@ -6,6 +6,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import java.net.URI;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
@@ -23,6 +25,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 @RestController
 @RequestMapping("/api/v1/agendas")
 @Tag(name = "Agendas", description = "Cadastro e consulta das pautas")
+@SecurityRequirement(name = "bearer")
 public class AgendaController {
 
     private final AgendaService agendaService;
@@ -32,7 +35,9 @@ public class AgendaController {
     }
 
     @PostMapping
-    @Operation(summary = "Cadastra uma nova pauta")
+    @PreAuthorize("hasRole('MANAGER')")
+    @Operation(summary = "Cadastra uma nova pauta (gestor)")
+    @ApiResponse(responseCode = "403", description = "Sem papel de gestor")
     @ApiResponse(responseCode = "201", description = "Pauta cadastrada")
     @ApiResponse(responseCode = "400", description = "Dados inválidos")
     public ResponseEntity<AgendaResponse> create(@Valid @RequestBody CreateAgendaRequest request) {

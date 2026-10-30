@@ -1,12 +1,20 @@
 param(
     [Parameter(Mandatory = $true)]
     [ValidatePattern('^https?://')]
-    [string] $BaseUrl
+    [string] $BaseUrl,
+    [string] $Manager = 'gestora',
+    [string] $Password = $env:SMOKE_PASSWORD
 )
 
 $ErrorActionPreference = 'Stop'
 $apiUrl = $BaseUrl.TrimEnd('/')
 $runId = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+if (-not $Password) { $Password = 'coopvote-local' }
+
+# Gestora que também vota: percorre cadastro, abertura, voto e apuração com um único token.
+$login = Invoke-RestMethod -Uri "$apiUrl/api/v1/auth/login" -Method Post -ContentType 'application/json' `
+    -Body (@{ associateId = $Manager; password = $Password } | ConvertTo-Json)
+$authHeaders = @{ Authorization = "Bearer $($login.accessToken)" }
 
 function Invoke-Screen {
     param(
@@ -19,6 +27,7 @@ function Invoke-Screen {
     $parameters = @{
         Uri = $Url
         Method = 'Post'
+        Headers = $authHeaders
     }
     if ($null -ne $Body) {
         $parameters.ContentType = 'application/json'
@@ -90,9 +99,7 @@ Assert-CallbackUrl -Url $voteAction.url
 $voteForm = Invoke-Screen -Url $voteAction.url
 Assert-CallbackUrl -Url $voteForm.botaoOk.url
 
-$voteBody = @{
-    associateId = "mobile-smoke-associate-$runId"
-}
+$voteBody = @{}
 if ($null -ne $voteForm.botaoOk.body) {
     $voteForm.botaoOk.body.psobject.Properties | ForEach-Object {
         $voteBody[$_.Name] = $_.Value

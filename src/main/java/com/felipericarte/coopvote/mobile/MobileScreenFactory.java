@@ -26,9 +26,12 @@ public class MobileScreenFactory {
         this.callbackUrls = callbackUrls;
     }
 
-    public SelectionScreen home(List<Agenda> agendas) {
+    public SelectionScreen home(List<Agenda> agendas, boolean canManage) {
+        Stream<MobileAction> manage = canManage
+                ? Stream.of(MobileAction.callback("Cadastrar nova pauta", callbackUrls.create("/agendas/new")))
+                : Stream.empty();
         return new SelectionScreen("Pautas", Stream.concat(
-                Stream.of(MobileAction.callback("Cadastrar nova pauta", callbackUrls.create("/agendas/new"))),
+                manage,
                 agendas.stream().map(agenda -> MobileAction.callback(
                         agenda.getTitle(), callbackUrls.create("/agendas/" + agenda.getId()))))
                 .toList());
@@ -47,13 +50,17 @@ public class MobileScreenFactory {
 
     public SelectionScreen agendaActions(
             Agenda agenda,
-            Optional<VotingSessionStatus> sessionStatus) {
+            Optional<VotingSessionStatus> sessionStatus,
+            boolean canManage) {
         List<MobileAction> items = switch (sessionStatus.orElse(null)) {
-            case null -> List.of(
-                    MobileAction.callback(
-                            "Abrir sessão de votação",
-                            callbackUrls.create("/agendas/" + agenda.getId() + "/voting-sessions/new")),
-                    MobileAction.callback("Voltar às pautas", callbackUrls.create("/")));
+            case null -> canManage
+                    ? List.of(
+                            MobileAction.callback(
+                                    "Abrir sessão de votação",
+                                    callbackUrls.create("/agendas/" + agenda.getId() + "/voting-sessions/new")),
+                            MobileAction.callback("Voltar às pautas", callbackUrls.create("/")))
+                    : List.of(
+                            MobileAction.callback("Voltar às pautas", callbackUrls.create("/")));
             case OPEN -> List.of(
                     MobileAction.callback(
                             "Votar",
@@ -87,7 +94,7 @@ public class MobileScreenFactory {
                 "Registrar voto",
                 List.of(
                         FormItem.text(agenda.getTitle()),
-                        FormItem.textInput("associateId", "Identificador do associado ou CPF")),
+                        FormItem.text("O voto é registrado para o associado autenticado.")),
                 MobileAction.callback("Sim", voteUrl, Map.of("vote", "Sim")),
                 MobileAction.callback("Não", voteUrl, Map.of("vote", "Não")));
     }
@@ -98,9 +105,9 @@ public class MobileScreenFactory {
                 List.of(
                         FormItem.text(agenda.getTitle()),
                         FormItem.text("Sessão: " + statusLabel(summary.sessionStatus())),
-                        FormItem.text("Votos Sim: " + summary.yesVotes()),
-                        FormItem.text("Votos Não: " + summary.noVotes()),
-                        FormItem.text("Total de votos: " + summary.totalVotes()),
+                        FormItem.text("Votos Sim: " + countLabel(summary.yesVotes())),
+                        FormItem.text("Votos Não: " + countLabel(summary.noVotes())),
+                        FormItem.text("Total de votos: " + countLabel(summary.totalVotes())),
                         FormItem.text("Resultado: " + resultLabel(summary.result()))),
                 MobileAction.callback(
                         "Voltar à pauta", callbackUrls.create("/agendas/" + agenda.getId())),
@@ -111,6 +118,10 @@ public class MobileScreenFactory {
         return MobileAction.callback(
                 "Consultar resultado",
                 callbackUrls.create("/agendas/" + agenda.getId() + "/result"));
+    }
+
+    private String countLabel(Long count) {
+        return count == null ? "disponível após o encerramento" : String.valueOf(count);
     }
 
     private String statusLabel(VotingSessionStatus status) {

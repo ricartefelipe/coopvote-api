@@ -34,12 +34,22 @@ adotadas estas premissas:
 1. Uma pauta possui título obrigatório e descrição opcional.
 2. Cada pauta pode ter uma única sessão e não pode ser reaberta.
 3. A duração é informada em minutos inteiros positivos.
-4. O instante de fechamento não aceita novos votos.
-5. A contagem pode ser consultada durante a sessão, mas o resultado é `IN_PROGRESS`.
+4. O instante de fechamento não aceita novos votos; o que vale é o relógio do servidor no momento
+   da gravação, revalidado depois da consulta de elegibilidade. Votos gravados fora do período não
+   entram na apuração.
+5. Durante a sessão o resultado é `IN_PROGRESS`; as contagens parciais só são exibidas a gestores e
+   auditores. Eleitores veem os totais após o encerramento.
 6. Após o fechamento, maioria de `Sim` aprova, maioria de `Não` rejeita e contagens iguais empatam.
 7. Uma sessão sem votos termina empatada.
-8. O identificador do associado é um texto opaco de até 100 caracteres. Somente valores com 11
-   dígitos são tratados como CPF.
+8. O eleitor é o associado autenticado (sujeito do token emitido no login local). O identificador
+   é um texto opaco de até 100 caracteres; o CPF, quando existir, fica no cadastro e serve só à
+   elegibilidade — nunca é credencial nem vem no corpo da requisição.
+15. **Modalidade do voto: identificável e auditável, não secreto.** O voto fica vinculado ao
+    associado no banco e no recibo; a API e o aplicativo não prometem anonimato. Voto secreto
+    exigiria separar elegibilidade da cédula e uma análise de ameaças própria (P2).
+16. Papéis: `VOTER` vota, `MANAGER` cadastra pautas e abre sessões, `AUDITOR` acompanha parciais.
+17. Elegibilidade externa fail-closed: sem resposta conclusiva do provedor o voto não é aceito
+    (`503`), e o eleitor tenta de novo; erro técnico nunca vira elegibilidade.
 9. IDs de recursos são UUIDs gerados pelo servidor.
 10. Horários do contrato são instantes ISO 8601 em UTC.
 11. Não foi criado endpoint de domínio para atualização, exclusão ou listagem de pautas porque não
@@ -60,10 +70,10 @@ aplicativo:
 | O comportamento do aplicativo diante de respostas de erro não é definido | mantido Problem Details com semântica HTTP e códigos estáveis |
 | Unidade e limite máximo da duração não são definidos | adotados minutos positivos, sem teto funcional arbitrário |
 | Reabertura e múltiplas sessões não são definidas | adotada uma sessão por pauta |
-| Consulta de parcial e momento da apuração não são definidos | parcial liberada com resultado `IN_PROGRESS` |
+| Consulta de parcial e momento da apuração não são definidos | parcial só para gestor/auditor, resultado `IN_PROGRESS`; eleitores veem totais após o encerramento |
 | Critério de aprovação e comportamento de empate não são definidos | adotada maioria simples e empate explícito |
 | Campos que compõem uma pauta não são definidos | adotados título e descrição |
-| Relação entre ID único e CPF do bônus não é definida | CPF é reconhecido só quando há 11 dígitos |
-| Serviço externo informado pode estar indisponível e responde aleatoriamente | timeout curto, testes com dublê e voto liberado se o serviço falhar |
+| Relação entre ID único e CPF do bônus não é definida | CPF é um atributo opcional do cadastro do associado; a elegibilidade só é consultada quando ele existe |
+| Serviço externo informado pode estar indisponível e responde aleatoriamente | timeout curto, consulta fora da transação, testes com dublê e voto **recusado** (`503`) se o serviço falhar |
 | Não há metas de latência, vazão ou volume para performance | apuração no banco e teste com 2.000 votos abaixo de 1s |
 | Status HTTP e formato de erros não são especificados | adotadas semânticas REST e Problem Details |

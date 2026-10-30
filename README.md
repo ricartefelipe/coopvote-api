@@ -18,11 +18,15 @@ acesso após um período de inatividade.
 
 - cadastro e consulta de pautas;
 - abertura de uma única sessão por pauta, com duração configurável e padrão de um minuto;
-- votos `Sim` ou `Não`, limitados a um voto por associado em cada pauta;
+- login do associado com credencial local e token Bearer (issuer, audience, expiração); papéis
+  `VOTER`, `MANAGER` e `AUDITOR`;
+- votos `Sim` ou `Não` do associado autenticado, limitados a um voto por associado em cada pauta
+  (constraint no banco) e recibo consultável;
 - encerramento calculado pelo relógio, sem processo agendado;
 - apuração agregada pelo banco, adequada a grandes volumes;
 - virtual threads no processamento HTTP;
-- verificação de elegibilidade quando o identificador do associado é um CPF;
+- verificação de elegibilidade pelo CPF cadastrado, fora da transação e fail-closed;
+- parciais visíveis só a gestores e auditores; resultado final determinístico;
 - mensagens `FORMULARIO` e `SELECAO` para o fluxo server-driven do aplicativo mobile;
 - callbacks mobile absolutos com domínio alterável por configuração;
 - respostas de erro no padrão Problem Details;
@@ -32,11 +36,12 @@ acesso após um período de inatividade.
 ## Tecnologias
 
 - Java 21;
-- Spring Boot 3.5;
+- Spring Boot 4.0 (Spring Framework 7, Spring Security 7, Jackson 3);
 - PostgreSQL 17;
 - Flyway;
 - Maven;
-- JUnit 5, Mockito, MockMvc, H2 e JaCoCo;
+- Spring Security (resource server JWT);
+- JUnit 5, Mockito, MockMvc, Testcontainers (PostgreSQL) e JaCoCo;
 - springdoc-openapi.
 
 ## Executando com Docker
@@ -48,14 +53,18 @@ docker compose up --build
 ```
 
 A API estará disponível em `http://localhost:8080`. O volume `postgres_data` preserva os dados
-quando os contêineres são reiniciados.
+quando os contêineres são reiniciados. O Compose local define `AUTH_LOCAL_SEED=true`, que cria os
+associados sintéticos `gestora` (gestora e eleitora), `auditora`, `associado-1` e `associado-2`, todos
+com a senha `coopvote-local`. Esse seed é exclusivo da jornada local.
 
 Verificações rápidas:
 
 ```bash
 curl http://localhost:8080/actuator/health
 curl http://localhost:8080/api-docs
-curl -X POST http://localhost:8080/api/v1/mobile
+TOKEN=$(curl -s -X POST http://localhost:8080/api/v1/auth/login -H 'Content-Type: application/json' \
+  -d '{"associateId":"gestora","password":"coopvote-local"}' | python3 -c 'import sys,json;print(json.load(sys.stdin)["accessToken"])')
+curl -X POST http://localhost:8080/api/v1/mobile -H "Authorization: Bearer $TOKEN"
 ```
 
 Interfaces de documentação:
@@ -87,8 +96,11 @@ Windows:
 
 O relatório de cobertura é criado em `target/site/jacoco/index.html`.
 
-No GitLab, cada push e merge request executa `mvn clean verify`. A pipeline publica os
-resultados JUnit, o relatório JaCoCo e o arquivo executável como artefatos por sete dias.
+Os testes de integração usam PostgreSQL real via Testcontainers (Docker obrigatório). No GitHub,
+`.github/workflows/ci.yml` executa em push e pull request: `mvn clean verify` (testes, cobertura
+mínima de 85% de linhas e 70% de branches, contagem de testes executados maior que zero), build da
+imagem final, scan Trivy bloqueante para HIGH/CRITICAL e smoke da imagem contra PostgreSQL (login,
+pauta, sessão, voto, duplicidade e acesso anônimo negado). Não há deploy na CI.
 
 ## Configuração
 
@@ -104,6 +116,10 @@ resultados JUnit, o relatório JaCoCo e o arquivo executável como artefatos por
 | `ELIGIBILITY_BASE_URL` | `https://user-info.herokuapp.com` | base do serviço de elegibilidade |
 | `ELIGIBILITY_TIMEOUT` | `2s` | tempo máximo da consulta de elegibilidade |
 | `PORT` | `8080` | porta HTTP da aplicação |
+| `AUTH_JWT_SECRET` | *(obrigatório)* | segredo HMAC (≥ 32 bytes) que assina os tokens; sem ele a aplicação não sobe |
+| `AUTH_JWT_ISSUER` / `AUTH_JWT_AUDIENCE` | `coopvote-api` | claims `iss` e `aud` validados em cada requisição |
+| `AUTH_TOKEN_TTL` | `30m` | validade do token |
+| `AUTH_LOCAL_SEED` | `false` | cria associados sintéticos; só para a jornada local |
 
 Credenciais padrão existem apenas para desenvolvimento local. Ambientes compartilhados devem
 fornecer segredos próprios.

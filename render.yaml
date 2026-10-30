@@ -5,7 +5,8 @@ services:
     plan: free
     region: virginia
     branch: main
-    autoDeployTrigger: commit
+    # Deploy só por decisão do proprietário: integrar em main não publica.
+    autoDeployTrigger: off
     healthCheckPath: /actuator/health
     envVars:
       - key: DATABASE_URL
